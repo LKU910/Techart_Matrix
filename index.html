@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>天工設計專案評量矩陣 | TECHART GROUP</title>
+  
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+            serif: ['Merriweather', 'ui-serif', 'Georgia', 'Cambria', 'Times New Roman', 'Times', 'serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- 載入 Babel (用於在瀏覽器內即時編譯 React JSX) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Import Map：定義所有的 React 套件與 Firebase 來源 -->
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.303.0?deps=react@18.2.0&bundle",
+        "recharts": "https://esm.sh/recharts@2.10.3?deps=react@18.2.0,react-dom@18.2.0&bundle",
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"
+      }
+    }
+  </script>
+  <style>
+    /* 隱藏滾動條 */
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* 拖曳時的過渡動畫 */
+    .drag-over { border-top: 2px solid #ea580c !important; }
+  </style>
+</head>
+<body class="bg-[#fdfbf9] text-stone-800 antialiased selection:bg-orange-100">
+  
+  <!-- React 應用程式掛載點 -->
+  <div id="root"></div>
+
+  <!-- 應用程式邏輯 -->
+  <script type="text/babel" data-type="module">
+    import React, { useState, useMemo, useEffect } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import { 
+      User, Layout, ChevronLeft, Plus, Trash2, X,
+      Target, Info, ChevronDown, ChevronUp, Download, 
+      Users, FileText, Eye, EyeOff, Radar as RadarIcon, CheckCircle2, GitMerge, Loader2, Edit2,
+      GripVertical, ArrowDownAZ, Clock, Settings2
+    } from 'lucide-react';
+    import { 
+      Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, 
+      ResponsiveContainer, Tooltip, Legend 
+    } from 'recharts';
+    
+    import { initializeApp } from 'firebase/app';
+    import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+    import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, writeBatch } from 'firebase/firestore';
+
+    // =========================================================================
+    // ✅ Firebase 設定檔
+    // =========================================================================
+    const YOUR_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyAk4NOwJKyVMefIi77gh4pnyevJda5HkH0",
+      authDomain: "techart-design-quality-list.firebaseapp.com",
+      projectId: "techart-design-quality-list",
+      storageBucket: "techart-design-quality-list.firebasestorage.app",
+      messagingSenderId: "429057781194",
+      appId: "1:429057781194:web:68bb237d0473246230f333",
+      measurementId: "G-HK2XRHB859"
+    };
+    // =========================================================================
+
+    const app = initializeApp(YOUR_FIREBASE_CONFIG);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const getProjectsCollectionRef = () => {
+      return collection(db, 'projects');
+    };
+
+    // --- 1. 常數與設定 ---
+    const DIMENSIONS = [
+      { 
+        key: 'clarity', label: '需求釐清精準度', shortLabel: '需求釐清',
+        core: '找出真正的解法，不當盲目加番茄醬的「手」。找出深層心理需求，或許改成「咖哩烏龍麵」才是最佳解。',
+        levels: {
+          1: { title: '純加番茄醬', desc: '客戶說什麼就畫什麼，連自己都覺得不合理。' },
+          2: { title: '番茄醬擺得很漂亮', desc: '照著表層需求做，但沒有重新思考真正的問題。' },
+          3: { title: '開始懷疑味道', desc: '察覺要求有矛盾，但還沒提出完整的最佳解法。' },
+          4: { title: '改成咖哩烏龍麵', desc: '抓出客戶真正的目的，提出對症下藥的設計解法。' },
+          5: { title: '煮出他沒說出口的味道', desc: '不僅提出正確解法，還完全讀懂決策者的喜好。' }
+        }
+      },
+      { 
+        key: 'architecture', label: '概念結構完整度', shortLabel: '概念結構',
+        core: '一句話測試！你的設計背後有沒有骨幹？必須要有一個核心敘事軸。',
+        levels: {
+          1: { title: '純靈感拼貼', desc: '只是好看的畫面集合，沒有主軸。' },
+          2: { title: '有初步分類', desc: '畫面有針對企劃內容做歸納，但邏輯關係薄弱。' },
+          3: { title: '具備基礎概念', desc: '有個大方向，但還沒辦法用「一句話」清楚表達。' },
+          4: { title: '邏輯推演順暢', desc: '能用一句話說出主軸，並解釋每個元素存在的原因。' },
+          5: { title: '擁有超強核心支點', desc: '80%以上成員可清楚複述邏輯，所有元素對應主軸。' }
+        }
+      },
+      { 
+        key: 'differentiation', label: '專屬差異化程度', shortLabel: '專屬差異',
+        core: '換 LOGO 測試！這個設計具備不可替代性嗎？',
+        levels: {
+          1: { title: '模板素材直用', desc: '什麼主題都能用，換了 LOGO 和主題也毫無違和感。' },
+          2: { title: '素材優化拼接', desc: '拿現有常見的展覽套路、設計素材稍微修改拼湊。' },
+          3: { title: '部分專屬元素', desc: '畫面中有客製化細節，但相似主題還是能套用。' },
+          4: { title: '具有專屬結構', desc: '整體空間或視覺能看出是為該客戶量身打造的。' },
+          5: { title: '完全專屬配置', desc: '只有這品牌這場域能用，具備極高的專屬差異化。' }
+        }
+      },
+      { 
+        key: 'amplification', label: '視覺放大能力', shortLabel: '視覺放大',
+        core: '視覺不只是裝飾，而是「放大器」，讓概念變清楚、變有力、被記住。',
+        levels: {
+          1: { title: '花拳繡腿', desc: '過度裝飾，導致視覺效果模糊了概念，喧賓奪主。' },
+          2: { title: '視覺美但偏離主軸', desc: '畫面精緻漂亮，但跟背後的概念關聯薄弱。' },
+          3: { title: '視覺符合概念', desc: '視覺與概念有一致性，但未形成強烈記憶點。' },
+          4: { title: '視覺有效強化概念', desc: '視覺成功讓概念變得更好懂、增加說服力。' },
+          5: { title: '視覺成為絕對記憶點', desc: '存在一個清晰可辨識的核心視覺符號，成為識別點。' }
+        }
+      },
+      { 
+        key: 'feasibility', label: '可執行與風險控制', shortLabel: '風險控制',
+        core: '高品質設計不只在於概念強，而是在預算、時間壓力下，仍然能維持品質。',
+        levels: {
+          1: { title: '只存在概念中', desc: '未考慮預算、工期，概念無法在現實條件下實現。' },
+          2: { title: '高風險賭注', desc: '理論可行，缺乏成本估算，可能導致成本超標。' },
+          3: { title: '基本可落地', desc: '實務上做得出來，但可能還沒仔細精算過最佳解。' },
+          4: { title: '優質的方案', desc: '設計當下已將預算限制與時間壓力納入規劃。' },
+          5: { title: '限制中創造優勢', desc: '主動調整產出策略，用聰明方式使限制成為優勢。' }
+        }
+      }
+    ];
+
+    const MEMBERS = [
+      { id: 'm1', name: '慧修', color: '#9f1239' }, 
+      { id: 'm2', name: '建興', color: '#0369a1' }, 
+      { id: 'm3', name: '阿寬', color: '#15803d' }, 
+      { id: 'm4', name: '浩偉', color: '#6b21a8' }, 
+      { id: 'm5', name: '阿涵', color: '#b45309' }, 
+      { id: 'm6', name: '51', color: '#be185d' },   
+      { id: 'm7', name: 'Edward', color: '#1d4ed8' },
+      { id: 'm8', name: '耀中', color: '#0f766e' }, 
+      { id: 'm9', name: 'Ray', color: '#a16207' }   
+    ];
+
+    const INITIAL_PROJECTS = [
+      {
+        id: 'p1',
+        name: '金融科技特展',
+        description: '為年度金融創新展覽打造的整體展區與視覺體驗。透過古典與現代的語彙交錯，呈現數據的溫度。',
+        evaluations: [],
+        subItems: [
+          { id: 's1', name: '主視覺海報', evaluations: [] },
+          { id: 's2', name: '互動體驗機台', evaluations: [] }
+        ],
+        order: 0
+      }
+    ];
+
+    function App() {
+      const [user, setUser] = useState(null);
+      const [loadingDb, setLoadingDb] = useState(true);
+
+      const [currentMemberId, setCurrentMemberId] = useState(null); 
+      const [projects, setProjects] = useState([]); 
+      const [selectedProjectId, setSelectedProjectId] = useState(null); 
+      const [activeItemId, setActiveItemId] = useState('main'); 
+      
+      const [isAddingProject, setIsAddingProject] = useState(false);
+      const [showAllMembers, setShowAllMembers] = useState(false); 
+      const [expandedRubrics, setExpandedRubrics] = useState({});
+      const [newProject, setNewProject] = useState({ name: '', description: '' });
+
+      const [deletingId, setDeletingId] = useState(null); 
+      const [isAddingSubItem, setIsAddingSubItem] = useState(false); 
+      const [newSubItemName, setNewSubItemName] = useState(''); 
+
+      const [draftScores, setDraftScores] = useState({});
+
+      const [isEditingProject, setIsEditingProject] = useState(false);
+      const [editProjectData, setEditProjectData] = useState({ name: '', description: '' });
+      const [deletingSubItemId, setDeletingSubItemId] = useState(null);
+
+      // 排序狀態
+      const [sortMethod, setSortMethod] = useState('date'); // 'date' | 'name' | 'manual'
+      const [draggedIndex, setDraggedIndex] = useState(null);
+      const [dragOverIndex, setDragOverIndex] = useState(null);
+
+      useEffect(() => {
+        const initAuth = async () => {
+          try {
+            await signInAnonymously(auth);
+          } catch (error) {
+            console.error("Auth error:", error);
+          }
+        };
+        initAuth();
+        const unsubscribe = onAuthStateChanged(auth, setUser);
+        return () => unsubscribe();
+      }, []);
+
+      useEffect(() => {
+        if (!user) return;
+        const projectsRef = getProjectsCollectionRef();
+        const unsubscribe = onSnapshot(projectsRef, (snapshot) => {
+          if (snapshot.empty && projects.length === 0 && loadingDb) {
+            INITIAL_PROJECTS.forEach(async (p) => {
+              try { await setDoc(doc(projectsRef, p.id), p); } catch(e) {}
+            });
+          } else {
+            const fetchedProjects = snapshot.docs.map(document => ({ id: document.id, ...document.data() }));
+            setProjects(fetchedProjects);
+            setLoadingDb(false);
+          }
+        }, (error) => {
+          console.error("Firestore error:", error);
+          setLoadingDb(false);
+        });
+
+        return () => unsubscribe();
+      }, [user]);
+
+      // --- 核心：排序邏輯 ---
+      const sortedProjects = useMemo(() => {
+        let list = [...projects];
+        if (sortMethod === 'date') {
+          list.sort((a, b) => b.id.localeCompare(a.id));
+        } else if (sortMethod === 'name') {
+          list.sort((a, b) => a.name.localeCompare(b.name));
+        } else if (sortMethod === 'manual') {
+          list.sort((a, b) => {
+            const orderA = a.order !== undefined ? a.order : Number.MAX_SAFE_INTEGER;
+            const orderB = b.order !== undefined ? b.order : Number.MAX_SAFE_INTEGER;
+            return orderA - orderB;
+          });
+        }
+        return list;
+      }, [projects, sortMethod]);
+
+      const currentMemberInfo = useMemo(() => {
+        return MEMBERS.find(m => m.id === currentMemberId) || MEMBERS[0];
+      }, [currentMemberId]);
+
+      const selectedProject = useMemo(() => {
+        return projects.find(p => p.id === selectedProjectId) || null;
+      }, [projects, selectedProjectId]);
+
+      const activeItem = useMemo(() => {
+        if (!selectedProject) return null;
+        if (activeItemId === 'main') return selectedProject;
+        const subItems = selectedProject.subItems || [];
+        const foundSub = subItems.find(sub => sub.id === activeItemId);
+        return foundSub ? foundSub : selectedProject;
+      }, [selectedProject, activeItemId]);
+
+      useEffect(() => {
+        if (activeItem && currentMemberId) {
+          const existingEval = (activeItem.evaluations || []).find(e => e.memberId === currentMemberId);
+          if (existingEval && existingEval.scores) {
+            setDraftScores({ ...existingEval.scores });
+          } else {
+            setDraftScores({});
+          }
+        }
+      }, [activeItem, currentMemberId]);
+
+      const isDraftComplete = useMemo(() => {
+        return DIMENSIONS.every(dim => (draftScores[dim.key] || 0) > 0);
+      }, [draftScores]);
+
+      const hasUnsavedChanges = useMemo(() => {
+        const existingEval = (activeItem?.evaluations || []).find(e => e.memberId === currentMemberId);
+        const existingScores = existingEval ? existingEval.scores : {};
+        return DIMENSIONS.some(dim => (existingScores[dim.key] || 0) !== (draftScores[dim.key] || 0));
+      }, [activeItem, currentMemberId, draftScores]);
+
+      const aggregatedScores = useMemo(() => {
+        if (!activeItem) return null;
+        const dimAverages = {};
+        let totalAverageScore = 0;
+        const evals = activeItem.evaluations || [];
+
+        DIMENSIONS.forEach(dim => {
+          const sum = evals.reduce((acc, curr) => {
+            const score = (curr.scores && curr.scores[dim.key]) ? curr.scores[dim.key] : 0;
+            return acc + score;
+          }, 0);
+          const avg = evals.length > 0 ? (sum / evals.length) : 0;
+          dimAverages[dim.key] = Number(avg.toFixed(1));
+          totalAverageScore += avg;
+        });
+
+        return { averages: dimAverages, total: Number(totalAverageScore.toFixed(1)) };
+      }, [activeItem]);
+
+      const radarData = useMemo(() => {
+        if (!activeItem || !aggregatedScores) return [];
+        const evals = activeItem.evaluations || [];
+        
+        return DIMENSIONS.map(dim => {
+          const dataPoint = { subject: dim.shortLabel, fullMark: 5, average: aggregatedScores.averages[dim.key] || 0 };
+          evals.forEach(e => {
+            dataPoint[e.memberId] = (e.scores && e.scores[dim.key]) ? e.scores[dim.key] : 0;
+          });
+          return dataPoint;
+        });
+      }, [activeItem, aggregatedScores]);
+
+      const alignmentData = useMemo(() => {
+        if (!selectedProject) return [];
+        
+        return DIMENSIONS.map(dim => {
+          const mainEvals = selectedProject.evaluations || [];
+          const mainSum = mainEvals.reduce((acc, curr) => acc + (curr.scores?.[dim.key] || 0), 0);
+          const mainAvg = mainEvals.length > 0 ? (mainSum / mainEvals.length) : 0;
+
+          const subItems = selectedProject.subItems || [];
+          let subSum = 0;
+          let subEvalCount = 0;
+          subItems.forEach(sub => {
+            const sEvals = sub.evaluations || [];
+            sEvals.forEach(e => {
+              if (e.scores && e.scores[dim.key]) {
+                subSum += e.scores[dim.key];
+                subEvalCount++;
+              }
+            });
+          });
+          const subAvg = subEvalCount > 0 ? (subSum / subEvalCount) : 0;
+
+          return {
+            subject: dim.shortLabel,
+            mainProject: Number(mainAvg.toFixed(1)),
+            subItemsAverage: Number(subAvg.toFixed(1)),
+            fullMark: 5
+          };
+        });
+      }, [selectedProject]);
+
+
+      const handleDraftScoreChange = (dimensionKey, newScore) => {
+        setDraftScores(prev => ({ ...prev, [dimensionKey]: newScore }));
+      };
+
+      const submitScores = async () => {
+        if (!isDraftComplete || !user || !selectedProject) return;
+
+        let updatedData = {};
+
+        const updateEvaluations = (evals) => {
+          const currentEvals = evals || [];
+          const hasEval = currentEvals.find(e => e.memberId === currentMemberId);
+          if (hasEval) {
+            return currentEvals.map(e => e.memberId === currentMemberId
+              ? { ...e, scores: { ...draftScores } } : e
+            );
+          } else {
+            return [...currentEvals, { memberId: currentMemberId, scores: { ...draftScores } }];
+          }
+        };
+
+        if (activeItemId === 'main') {
+          updatedData = { evaluations: updateEvaluations(selectedProject.evaluations) };
+        } else {
+          const subItems = selectedProject.subItems || [];
+          updatedData = {
+            subItems: subItems.map(sub => 
+              sub.id === activeItemId ? { ...sub, evaluations: updateEvaluations(sub.evaluations) } : sub
+            )
+          };
+        }
+
+        try {
+          const projectsRef = getProjectsCollectionRef();
+          const docRef = doc(projectsRef, selectedProject.id);
+          await updateDoc(docRef, updatedData);
+        } catch (err) {
+          console.error("Update failed:", err);
+        }
+      };
+
+      // --- 刪除評分 (Reset) 功能 ---
+      const deleteScores = async () => {
+        if (!user || !selectedProject) return;
+
+        const removeEvaluation = (evals) => {
+          const currentEvals = evals || [];
+          return currentEvals.filter(e => e.memberId !== currentMemberId);
+        };
+
+        let updatedData = {};
+        if (activeItemId === 'main') {
+          updatedData = { evaluations: removeEvaluation(selectedProject.evaluations) };
+        } else {
+          const subItems = selectedProject.subItems || [];
+          updatedData = {
+            subItems: subItems.map(sub => 
+              sub.id === activeItemId ? { ...sub, evaluations: removeEvaluation(sub.evaluations) } : sub
+            )
+          };
+        }
+
+        try {
+          const projectsRef = getProjectsCollectionRef();
+          const docRef = doc(projectsRef, selectedProject.id);
+          await updateDoc(docRef, updatedData);
+          setDraftScores({});
+        } catch (err) {
+          console.error("Delete score failed:", err);
+        }
+      };
+
+      const toggleRubric = (key) => {
+        setExpandedRubrics(prev => ({ ...prev, [key]: !prev[key] }));
+      };
+
+      const handleAddProject = async (e) => {
+        e.preventDefault();
+        if (!newProject.name || !newProject.name.trim() || !user) return;
+        
+        const newId = 'p' + Date.now().toString();
+        const maxOrder = projects.length > 0 ? Math.max(...projects.map(p => p.order || 0)) : 0;
+        
+        const createdProject = {
+          id: newId,
+          name: newProject.name.trim(),
+          description: newProject.description || '',
+          evaluations: [],
+          subItems: [],
+          order: maxOrder + 1
+        };
+        
+        setIsAddingProject(false);
+        setNewProject({ name: '', description: '' });
+
+        try {
+          const projectsRef = getProjectsCollectionRef();
+          const docRef = doc(projectsRef, newId);
+          await setDoc(docRef, createdProject);
+        } catch (err) {
+          console.error("Firebase setDoc failed:", err);
+        }
+      };
+
+      const confirmEditProject = async (e) => {
+        e.preventDefault();
+        if (!editProjectData.name.trim() || !user || !selectedProject) return;
+        
+        try {
+          const projectsRef = getProjectsCollectionRef();
+          const docRef = doc(projectsRef, selectedProject.id);
+          await updateDoc(docRef, { 
+            name: editProjectData.name.trim(),
+            description: editProjectData.description.trim()
+          });
+          setIsEditingProject(false);
+        } catch (err) {
+          console.error("Firebase updateDoc failed:", err);
+        }
+      };
+
+      const confirmAddSubItem = async (e) => {
+        e.preventDefault();
+        if (newSubItemName && newSubItemName.trim() && user && selectedProject) {
+          const newSubItem = {
+            id: 's' + Date.now(),
+            name: newSubItemName.trim(),
+            evaluations: []
+          };
+          const currentSubItems = selectedProject.subItems || [];
+          const updatedSubItems = [...currentSubItems, newSubItem];
+          
+          setNewSubItemName('');
+          setIsAddingSubItem(false);
+          setActiveItemId(newSubItem.id); 
+
+          try {
+            const projectsRef = getProjectsCollectionRef();
+            const docRef = doc(projectsRef, selectedProject.id);
+            await updateDoc(docRef, { subItems: updatedSubItems });
+          } catch (err) {
+            console.error("Firebase updateDoc failed:", err);
+          }
+        }
+      };
+
+      const deleteSubItem = async (subId) => {
+        if (!user || !selectedProject) return;
+        
+        const currentSubItems = selectedProject.subItems || [];
+        const updatedSubItems = currentSubItems.filter(sub => sub.id !== subId);
+        
+        try {
+          const projectsRef = getProjectsCollectionRef();
+          const docRef = doc(projectsRef, selectedProject.id);
+          await updateDoc(docRef, { subItems: updatedSubItems });
+          
+          if (activeItemId === subId) {
+            setActiveItemId('main');
+          }
+          setDeletingSubItemId(null);
+        } catch (err) {
+          console.error("Firebase updateDoc failed:", err);
+        }
+      };
+
+      const deleteProject = async (id) => {
+        setDeletingId(null);
+        setSelectedProjectId(null); 
+        if (!user) return;
+
+        try {
+          const projectsRef = getProjectsCollectionRef();
+          await deleteDoc(doc(projectsRef, id));
+        } catch (err) {
+          console.error("Firebase deleteDoc failed:", err);
+        }
+      };
+
+      const getMemberTotal = (evals, memberId) => {
+        const safeEvals = evals || [];
+        const e = safeEvals.find(x => x.memberId === memberId);
+        if (!e || !e.scores) return 0;
+        return DIMENSIONS.reduce((sum, dim) => sum + (e.scores[dim.key] || 0), 0);
+      };
+
+      const exportToCSV = () => {
+        if (!selectedProject) return;
+        let csvContent = `專案名稱,${selectedProject.name}\n專案描述,${selectedProject.description}\n\n`;
+        
+        const subItems = selectedProject.subItems || [];
+        const headers = ['評分成員', '整體大專案 (滿分25)', ...subItems.map(s => `${s.name} (滿分25)`)];
+        csvContent += headers.join(',') + '\n';
+
+        MEMBERS.forEach(m => {
+          const mainScore = getMemberTotal(selectedProject.evaluations, m.id);
+          const subScores = subItems.map(sub => getMemberTotal(sub.evaluations, m.id));
+          csvContent += [m.name, mainScore > 0 ? mainScore : '未評', ...subScores.map(s => s > 0 ? s : '未評')].join(',') + '\n';
+        });
+
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${selectedProject.name}_評估報告.csv`;
+        link.click();
+      };
+
+      // --- 拖曳排序相關事件 ---
+      const handleDragStart = (e, index) => {
+        if (sortMethod !== 'manual') return;
+        setDraggedIndex(index);
+        setTimeout(() => {
+          e.target.style.opacity = '0.5';
+        }, 0);
+      };
+
+      const handleDragEnter = (index) => {
+        if (sortMethod !== 'manual' || draggedIndex === null) return;
+        setDragOverIndex(index);
+      };
+
+      const handleDragEnd = (e) => {
+        if (sortMethod !== 'manual') return;
+        e.target.style.opacity = '1';
+        setDraggedIndex(null);
+        setDragOverIndex(null);
+      };
+
+      const handleDrop = async (e, dropIndex) => {
+        e.preventDefault();
+        if (sortMethod !== 'manual' || draggedIndex === null || draggedIndex === dropIndex) {
+          handleDragEnd(e);
+          return;
+        }
+
+        const newProjectsList = [...sortedProjects];
+        const draggedItem = newProjectsList[draggedIndex];
+        newProjectsList.splice(draggedIndex, 1);
+        newProjectsList.splice(dropIndex, 0, draggedItem);
+
+        const updatedProjects = newProjectsList.map((p, idx) => ({ ...p, order: idx }));
+
+        handleDragEnd(e);
+
+        try {
+          const batch = writeBatch(db);
+          const projectsRef = getProjectsCollectionRef();
+          
+          updatedProjects.forEach(p => {
+            const docRef = doc(projectsRef, p.id);
+            batch.update(docRef, { order: p.order });
+          });
+          
+          await batch.commit();
+        } catch (err) {
+          console.error("Batch update failed:", err);
+        }
+      };
+
+      const TechartLogo = ({ large = false }) => (
+        <div className="flex flex-col items-center justify-center cursor-default text-center">
+          <img 
+            src="./LOGO.png" 
+            alt="TECHART 天工開物" 
+            className={`${large ? 'h-10 md:h-12' : 'h-5 md:h-6'} object-contain mb-3`}
+          />
+          <span className={`font-sans font-medium tracking-[0.3em] text-stone-400 pl-[0.3em] ${large ? 'text-xs' : 'text-[8px] md:text-[9px]'}`}>
+            EVALUATION MATRIX
+          </span>
+        </div>
+      );
+
+      if (loadingDb) {
+        return (
+          <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center font-sans">
+            <Loader2 className="w-8 h-8 animate-spin text-orange-600 mb-4" />
+            <div className="text-sm font-serif tracking-widest text-stone-500">we do computer human romance.</div>
+          </div>
+        );
+      }
+
+      if (!currentMemberId) {
+        return (
+          <div className="min-h-screen bg-[#fdfbf9] flex items-center justify-center p-4 font-sans text-stone-800 selection:bg-orange-100">
+            <div className="bg-white p-10 md:p-14 rounded-sm shadow-sm border border-stone-200 max-w-2xl w-full text-center relative">
+              <div className="absolute top-0 left-0 w-full h-1 bg-orange-600"></div>
+              <div className="flex justify-center mb-10 mt-2">
+                <TechartLogo large={true} />
+              </div>
+              <h1 className="text-2xl md:text-3xl font-serif text-stone-900 tracking-wide mb-4">
+                設計品質評量矩陣
+              </h1>
+              <p className="text-stone-500 mb-12 text-sm md:text-base leading-relaxed">
+                請選擇參與評核的身份以登入系統。
+              </p>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {MEMBERS.map(m => (
+                  <button 
+                    key={m.id} 
+                    onClick={() => setCurrentMemberId(m.id)}
+                    className="group flex items-center justify-center gap-3 p-4 rounded-sm bg-white border border-stone-200 hover:border-orange-600 hover:bg-orange-50 transition-colors text-stone-700"
+                  >
+                    <span className="w-2 h-2 rounded-full opacity-70 group-hover:opacity-100 transition-opacity" style={{backgroundColor: m.color}}></span>
+                    <span className="font-medium tracking-wide group-hover:text-orange-800">{m.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (!selectedProject) {
+        return (
+          <div className="min-h-screen bg-[#fdfbf9] p-4 md:p-8 font-sans selection:bg-orange-100">
+            <div className="max-w-5xl mx-auto space-y-8">
+              <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 border-b border-stone-200 pb-6">
+                <div className="flex items-center gap-5">
+                  <button 
+                    onClick={() => setCurrentMemberId(null)} 
+                    className="p-2 -ml-2 text-stone-400 hover:text-orange-600 transition-colors"
+                    title="返回身份選擇"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <TechartLogo />
+                </div>
+                
+                <div className="w-full sm:w-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
+                  
+                  <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-sm border border-stone-200 text-xs text-stone-500 font-medium">
+                    <button 
+                      onClick={() => setSortMethod('date')} 
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm transition-all ${sortMethod === 'date' ? 'bg-white text-stone-900 shadow-sm' : 'hover:text-stone-700'}`}
+                    >
+                      <Clock className="w-3.5 h-3.5" /> 最新
+                    </button>
+                    <button 
+                      onClick={() => setSortMethod('name')} 
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm transition-all ${sortMethod === 'name' ? 'bg-white text-stone-900 shadow-sm' : 'hover:text-stone-700'}`}
+                    >
+                      <ArrowDownAZ className="w-3.5 h-3.5" /> 名稱
+                    </button>
+                    <button 
+                      onClick={() => setSortMethod('manual')} 
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm transition-all ${sortMethod === 'manual' ? 'bg-white text-orange-700 shadow-sm' : 'hover:text-stone-700'}`}
+                    >
+                      <Settings2 className="w-3.5 h-3.5" /> 自訂
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="text-sm font-medium text-stone-500 bg-stone-50 px-3 py-1.5 rounded-lg border border-stone-100 hidden sm:block">
+                      User: <span style={{color: currentMemberInfo.color}} className="font-bold ml-1">{currentMemberInfo.name}</span>
+                    </div>
+                    <button 
+                      onClick={() => setIsAddingProject(!isAddingProject)}
+                      className="flex items-center justify-center gap-2 px-5 py-2.5 bg-orange-600 text-white rounded-sm text-sm tracking-wide hover:bg-orange-700 transition-colors shadow-sm shadow-orange-600/20"
+                    >
+                      {isAddingProject ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                      {isAddingProject ? '取消建立' : '建立大專案'}
+                    </button>
+                  </div>
+                </div>
+              </header>
+
+              {isAddingProject && (
+                <form onSubmit={handleAddProject} className="bg-white p-8 rounded-sm border-t-2 border-t-orange-600 border border-stone-200 shadow-sm animate-in fade-in slide-in-from-top-2">
+                  <h3 className="font-serif text-lg text-stone-800 mb-4 tracking-wide">建立新專案</h3>
+                  <input type="text" placeholder="專案名稱" required className="w-full mb-4 p-4 rounded-sm bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 focus:outline-none focus:bg-white focus:border-orange-500 transition-all font-medium" value={newProject.name} onChange={(e) => setNewProject({ ...newProject, name: e.target.value })} />
+                  <textarea placeholder="專案簡述..." className="w-full mb-6 p-4 rounded-sm bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 resize-none focus:outline-none focus:bg-white focus:border-orange-500 transition-all" rows="2" value={newProject.description} onChange={(e) => setNewProject({ ...newProject, description: e.target.value })} />
+                  <div className="flex justify-end">
+                    <button type="submit" className="px-6 py-2.5 bg-orange-600 text-white rounded-sm tracking-wide hover:bg-orange-700 transition-colors shadow-sm">確認建立</button>
+                  </div>
+                </form>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {sortedProjects.map((project, index) => {
+                  const subItems = project.subItems || [];
+                  const evals = project.evaluations || [];
+                  const isManualMode = sortMethod === 'manual';
+                  const isDragOver = dragOverIndex === index;
+                  
+                  return (
+                    <div 
+                      key={project.id} 
+                      className={`relative group ${isDragOver ? 'drag-over' : ''} ${isManualMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                      draggable={isManualMode}
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragEnter={() => handleDragEnter(index)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDragEnd={handleDragEnd}
+                      onDrop={(e) => handleDrop(e, index)}
+                    >
+                      {isManualMode && (
+                        <div className="absolute top-1/2 -left-4 transform -translate-y-1/2 text-stone-300 opacity-50 group-hover:opacity-100 transition-opacity">
+                          <GripVertical className="w-5 h-5" />
+                        </div>
+                      )}
+
+                      <button 
+                        onClick={() => {
+                          if(draggedIndex !== null) return;
+                          setSelectedProjectId(project.id);
+                          setActiveItemId('main');
+                        }} 
+                        className={`w-full text-left bg-white p-8 rounded-sm border border-stone-200 hover:border-orange-400 hover:shadow-sm transition-all duration-300 flex flex-col h-full ${isManualMode ? 'pointer-events-none group-hover:pointer-events-auto' : ''}`}
+                      >
+                        <div className="text-[10px] uppercase tracking-widest text-orange-600 mb-2 font-medium">Project</div>
+                        <h3 className="font-serif text-2xl text-stone-900 mb-3 group-hover:text-orange-700 transition-colors pr-10">{project.name}</h3>
+                        <p className="text-stone-500 text-sm line-clamp-2 mb-8 flex-1 leading-relaxed">{project.description}</p>
+                        
+                        <div className="flex items-center gap-4 text-xs font-medium text-stone-400 border-t border-stone-100 pt-4 w-full">
+                          <span className="flex items-center gap-1.5">
+                            <FileText className="w-3.5 h-3.5 text-stone-300" />
+                            {subItems.length} 子項目
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5 text-stone-300" />
+                            {evals.length} 份評量
+                          </span>
+                        </div>
+                      </button>
+                      
+                      {deletingId === project.id ? (
+                        <div 
+                          onClick={(e) => e.stopPropagation()} 
+                          className="absolute top-6 right-6 flex items-center bg-red-50 text-red-800 px-3 py-1.5 rounded-sm border border-red-200 z-10 animate-in fade-in"
+                        >
+                          <span className="text-xs font-medium tracking-wide mr-2">確認刪除</span>
+                          <button onClick={() => deleteProject(project.id)} className="p-1 hover:bg-red-100 text-red-700 transition-colors mr-1"><CheckCircle2 className="w-4 h-4" /></button>
+                          <button onClick={() => setDeletingId(null)} className="p-1 hover:bg-red-100 text-red-700 transition-colors"><X className="w-4 h-4" /></button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setDeletingId(project.id); }} 
+                          className="absolute top-8 right-8 text-stone-300 hover:text-red-700 transition-colors opacity-0 group-hover:opacity-100" 
+                          title="刪除大專案"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      const subItemsList = selectedProject.subItems || [];
+      const isMainActive = activeItemId === 'main';
+
+      const themeClass = {
+        bgTheme: isMainActive ? 'bg-orange-600' : 'bg-stone-700',
+        bgLight: isMainActive ? 'bg-orange-50' : 'bg-stone-50',
+        textTheme: isMainActive ? 'text-orange-700' : 'text-stone-700',
+        textDark: isMainActive ? 'text-orange-950' : 'text-stone-900',
+        borderTheme: isMainActive ? 'border-orange-600' : 'border-stone-700',
+        borderLight: isMainActive ? 'border-orange-200' : 'border-stone-300',
+      };
+
+      const existingEval = (activeItem.evaluations || []).find(e => e.memberId === currentMemberId);
+
+      return (
+        <div className="min-h-screen bg-[#fdfbf9] font-sans text-stone-800 pb-24 selection:bg-orange-100">
+          
+          <div className="sticky top-0 z-30 bg-[#fdfbf9]/90 backdrop-blur-md border-b border-stone-200">
+            <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+              <button onClick={() => setSelectedProjectId(null)} className="flex items-center text-stone-500 font-medium text-sm hover:text-orange-600 transition-colors tracking-wide">
+                <ChevronLeft className="w-4 h-4 mr-1" /> 返回大廳
+              </button>
+              <div className="flex items-center gap-4">
+                <div className="hidden sm:block opacity-80 scale-75 transform origin-right">
+                  <TechartLogo />
+                </div>
+                <div className="flex items-center pl-4 sm:border-l sm:border-stone-300 text-sm">
+                  <span className="text-stone-400 mr-2 tracking-wide">評量者</span>
+                  <span className="flex items-center gap-2 font-serif italic text-stone-700">
+                    <span className="w-2 h-2 rounded-full" style={{backgroundColor: currentMemberInfo.color}}></span>
+                    {currentMemberInfo.name}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <main className="max-w-6xl mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in duration-500 mt-4">
+            
+            <div className="relative bg-white p-6 md:p-8 rounded-sm border border-stone-200 shadow-sm pr-12 overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-orange-600"></div>
+              
+              <div className="absolute top-6 right-6 flex items-center gap-2">
+                {deletingId === selectedProject.id ? (
+                  <div className="flex items-center bg-red-50 text-red-800 px-3 py-1.5 rounded-sm border border-red-200 z-10 animate-in fade-in">
+                    <span className="text-xs font-medium mr-3">確認刪除專案</span>
+                    <button onClick={() => deleteProject(selectedProject.id)} className="p-1 hover:bg-red-100 text-red-700 transition-colors mr-1"><CheckCircle2 className="w-4 h-4" /></button>
+                    <button onClick={() => setDeletingId(null)} className="p-1 hover:bg-red-100 text-red-700 transition-colors"><X className="w-4 h-4" /></button>
+                  </div>
+                ) : (
+                  <>
+                    <button 
+                      onClick={() => {
+                        setEditProjectData({ name: selectedProject.name, description: selectedProject.description });
+                        setIsEditingProject(true);
+                      }} 
+                      className="p-2 text-stone-300 hover:text-orange-600 transition-colors" 
+                      title="編輯大專案"
+                    >
+                      <Edit2 className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={() => setDeletingId(selectedProject.id)} 
+                      className="p-2 text-stone-300 hover:text-red-600 transition-colors" 
+                      title="刪除大專案"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <div className="pl-2 pr-10">
+                <div className="text-[10px] font-sans font-semibold text-orange-600 tracking-[0.2em] mb-3 uppercase flex items-center">
+                  <Layout className="w-3.5 h-3.5 mr-1.5" /> Project Detail
+                </div>
+                <h2 className="text-3xl md:text-4xl font-serif text-stone-900 mb-4 tracking-tight">{selectedProject.name}</h2>
+                <p className="text-stone-500 text-sm md:text-base max-w-2xl leading-relaxed">{selectedProject.description}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-6 overflow-x-auto pb-1 scrollbar-hide border-b border-stone-200">
+              <button 
+                onClick={() => setActiveItemId('main')}
+                className={`flex items-center gap-2 pb-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors border-b-2 ${
+                  isMainActive ? `border-orange-600 text-stone-900` : 'border-transparent text-stone-400 hover:text-stone-600'
+                }`}
+              >
+                整體大專案
+              </button>
+              
+              {subItemsList.map(sub => {
+                const isSubActive = activeItemId === sub.id;
+                return (
+                  <button 
+                    key={sub.id}
+                    onClick={() => setActiveItemId(sub.id)}
+                    className={`flex items-center gap-2 pb-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors border-b-2 ${
+                      isSubActive ? 'border-stone-600 text-stone-800' : 'border-transparent text-stone-400 hover:text-stone-600'
+                    }`}
+                  >
+                    {sub.name}
+                  </button>
+                )
+              })}
+              
+              <button 
+                onClick={() => setIsAddingSubItem(true)}
+                className="flex items-center gap-1.5 pb-3 text-sm font-medium tracking-wide text-stone-400 hover:text-orange-600 transition-colors whitespace-nowrap ml-auto"
+              >
+                <Plus className="w-3.5 h-3.5" /> 增加子項目
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+              
+              <div className="lg:col-span-7 space-y-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center">
+                    <h3 className="text-xl font-serif text-stone-900 tracking-wide">
+                      評估對象：<span className={themeClass.textTheme}>{activeItem ? activeItem.name || '整體大專案' : ''}</span>
+                    </h3>
+                    
+                    {!isMainActive && (
+                      deletingSubItemId === activeItemId ? (
+                        <div className="ml-4 flex items-center bg-red-50 text-red-800 px-2 py-1 rounded-sm border border-red-200 z-10 animate-in fade-in">
+                          <span className="text-xs font-medium mr-2">刪除子項目？</span>
+                          <button onClick={() => deleteSubItem(activeItemId)} className="p-0.5 hover:bg-red-100 text-red-700 transition-colors mr-1"><CheckCircle2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => setDeletingSubItemId(null)} className="p-0.5 hover:bg-red-100 text-red-700 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => setDeletingSubItemId(activeItemId)} 
+                          className="ml-3 text-stone-300 hover:text-red-600 transition-colors" 
+                          title="刪除此子項目"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                {DIMENSIONS.map((dim, index) => {
+                  const currentScore = draftScores[dim.key] || 0;
+                  const isExpanded = expandedRubrics[dim.key] ? true : false;
+                  const levelObj = dim.levels[currentScore] || { title: 'Pending', desc: '' };
+
+                  return (
+                    <div key={dim.key} className={`bg-white p-5 md:p-6 rounded-sm border transition-all duration-300 ${currentScore > 0 ? themeClass.borderTheme : 'border-stone-200 shadow-sm'}`}>
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                        <div className="flex items-center justify-between w-full sm:w-auto">
+                          <h4 className="font-medium text-stone-800 text-base tracking-wide flex items-center">
+                            <span className={`${themeClass.textTheme} mr-4 font-serif text-lg opacity-80`}>0{index+1}</span>
+                            {dim.label}
+                          </h4>
+                          <button onClick={() => toggleRubric(dim.key)} className="sm:hidden p-1.5 text-stone-400">
+                            {isExpanded ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>}
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <div className="flex gap-1.5">
+                            {[1, 2, 3, 4, 5].map(val => {
+                              const isSelected = currentScore === val;
+                              return (
+                                <button key={val} onClick={() => handleDraftScoreChange(dim.key, val)}
+                                  className={`w-9 h-9 flex items-center justify-center rounded-sm text-sm font-medium transition-all border
+                                    ${isSelected 
+                                      ? `${themeClass.bgTheme} text-white border-transparent` 
+                                      : `bg-stone-50 text-stone-500 border-stone-200 hover:border-orange-300 hover:text-stone-700 hover:bg-white`
+                                    }`}>
+                                  {val}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <button onClick={() => toggleRubric(dim.key)} className={`hidden sm:flex text-stone-400 hover:text-orange-600 transition-colors p-1`}>
+                            <Info className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className={`mt-4 text-sm font-medium py-2 px-3 inline-flex items-center gap-2 ${currentScore > 0 ? themeClass.textTheme : 'text-stone-400'}`}>
+                        {currentScore > 0 && <span className="opacity-60 text-xs">Level {currentScore}.</span>}
+                        {levelObj.title}
+                      </div>
+
+                      {isExpanded && (
+                        <div className="mt-5 pt-5 border-t border-stone-100 text-sm animate-in fade-in slide-in-from-top-2">
+                          <div className="p-4 bg-stone-50 border border-stone-100 rounded-sm mb-5 text-stone-600 leading-relaxed">
+                            <strong className="text-stone-800 font-serif mr-1">Core Spirit.</strong> {dim.core}
+                          </div>
+                          <div className="space-y-1.5">
+                            {[1, 2, 3, 4, 5].map((level) => {
+                              const lvObj = dim.levels[level] || { title: '', desc: '' };
+                              const isLvSelected = currentScore === level;
+                              return (
+                                <button key={level} onClick={() => handleDraftScoreChange(dim.key, level)}
+                                  className={`w-full text-left p-3 rounded-sm flex gap-4 transition-colors border ${isLvSelected ? `${themeClass.bgLight} ${themeClass.borderLight}` : 'border-transparent hover:bg-stone-50'}`}>
+                                  <span className={`font-serif shrink-0 mt-0.5 text-base ${isLvSelected ? themeClass.textTheme : 'text-stone-400'}`}>{level}</span>
+                                  <div>
+                                    <div className={`font-medium mb-1 tracking-wide ${isLvSelected ? themeClass.textDark : 'text-stone-700'}`}>{lvObj.title}</div>
+                                    <div className={`text-xs leading-relaxed ${isLvSelected ? themeClass.textTheme : 'text-stone-500'}`}>{lvObj.desc}</div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                <div className={`p-6 rounded-sm border flex flex-col sm:flex-row justify-between items-center gap-5 transition-all duration-300 ${isDraftComplete ? 'bg-white border-orange-200' : 'bg-stone-50 border-stone-200'}`}>
+                  <div className="text-center sm:text-left">
+                    <h4 className="font-serif text-stone-900 text-lg tracking-wide mb-1">Matrix Sync</h4>
+                    <p className={`text-xs tracking-wide ${isDraftComplete ? 'text-stone-500' : 'text-red-700'}`}>
+                      {isDraftComplete
+                        ? hasUnsavedChanges ? '評量已完成，請確認並同步至雲端。' : '目前矩陣已同步至最新狀態。'
+                        : `尚有 ${5 - DIMENSIONS.filter(d => draftScores[d.key] > 0).length} 項維度未完成評量`}
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    {existingEval && (
+                      <button
+                        onClick={deleteScores}
+                        className="px-5 py-2.5 rounded-sm text-sm font-medium tracking-widest transition-all whitespace-nowrap uppercase bg-white border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300"
+                        title="撤銷並刪除您的評分"
+                      >
+                        Reset
+                      </button>
+                    )}
+                    <button
+                      onClick={submitScores}
+                      disabled={!isDraftComplete || !hasUnsavedChanges}
+                      className={`px-8 py-3 rounded-sm text-sm font-medium tracking-widest transition-all whitespace-nowrap uppercase ${
+                        isDraftComplete && hasUnsavedChanges
+                          ? `bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/20`
+                          : 'bg-stone-200 text-stone-400 cursor-not-allowed'
+                      }`}
+                    >
+                      {!hasUnsavedChanges && isDraftComplete ? 'Synchronized' : (existingEval ? 'Update' : 'Submit')}
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="lg:col-span-5 lg:sticky lg:top-20 h-max space-y-6">
+                <div className="bg-white p-6 rounded-sm border border-stone-200 shadow-sm">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-serif text-stone-900 text-lg tracking-wide">
+                      Capability Radar
+                    </h3>
+                    <button onClick={() => setShowAllMembers(!showAllMembers)} className="text-xs text-stone-400 hover:text-orange-600 font-medium tracking-wide flex items-center gap-1.5 transition-colors uppercase">
+                      {showAllMembers ? <EyeOff className="w-3.5 h-3.5"/> : <Eye className="w-3.5 h-3.5"/>}
+                      {showAllMembers ? 'Hide All' : 'Show All'}
+                    </button>
+                  </div>
+
+                  {(activeItem.evaluations || []).length === 0 ? (
+                    <div className="w-full h-[320px] flex flex-col items-center justify-center bg-stone-50 border border-stone-200 rounded-sm">
+                      <span className="text-stone-400 text-xs tracking-widest uppercase font-medium">No Data Available</span>
+                    </div>
+                  ) : (
+                    <div style={{ width: '100%', height: '320px' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
+                          <PolarGrid stroke="#e7e5e4" /> 
+                          <PolarAngleAxis dataKey="subject" tick={{ fill: '#57534e', fontSize: 11, fontWeight: 500 }} />
+                          <PolarRadiusAxis angle={30} domain={[0, 5]} tickCount={6} tick={{ fontSize: 9, fill: '#a8a29e' }} axisLine={false} />
+                          
+                          {showAllMembers ? (
+                            MEMBERS.map(m => {
+                              const hasEval = (activeItem.evaluations || []).some(e => e.memberId === m.id);
+                              if(!hasEval) return null;
+                              return <Radar key={m.id} name={m.name} dataKey={m.id} stroke={m.color} fill="none" strokeWidth={1} strokeDasharray="3 3" />
+                            })
+                          ) : (
+                            <Radar name={currentMemberInfo.name} dataKey={currentMemberId} stroke={isMainActive ? '#ea580c' : '#57534e'} fill={isMainActive ? '#ea580c' : '#57534e'} fillOpacity={0.1} strokeWidth={2} />
+                          )}
+                          
+                          <Radar name="團隊均值" dataKey="average" stroke="#a8a29e" fill="#f5f5f4" fillOpacity={showAllMembers ? 0 : 0.6} strokeWidth={1} />
+                          <Tooltip wrapperClassName="rounded-sm border border-stone-200 shadow-sm" contentStyle={{ backgroundColor: '#ffffff', borderRadius: '2px', border: 'none', color: '#1c1917', fontSize: '12px' }} itemStyle={{color: '#57534e'}} />
+                          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px', color: '#57534e' }} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="bg-white rounded-sm border border-stone-200 shadow-sm">
+                  <div className="p-4 border-b border-stone-100 bg-stone-50/50">
+                    <h4 className="font-serif text-stone-800 text-sm tracking-wide">Participants</h4>
+                  </div>
+                  <div className="p-2 space-y-0.5">
+                    {MEMBERS.map(m => {
+                      const ev = (activeItem.evaluations || []).find(e => e.memberId === m.id);
+                      const isMe = m.id === currentMemberId;
+                      if (!ev) {
+                        return (
+                          <div key={m.id} className="flex justify-between p-2 px-3 text-xs text-stone-400">
+                            <span className="flex items-center gap-3"><span className="w-1.5 h-1.5 rounded-full bg-stone-200"></span>{m.name}</span>
+                            <span className="tracking-widest uppercase">Pending</span>
+                          </div>
+                        );
+                      }
+                      const tot = DIMENSIONS.reduce((s, dim) => s + (ev.scores[dim.key] || 0), 0);
+                      return (
+                        <div key={m.id} className={`flex justify-between p-2 px-3 text-sm font-medium rounded-sm ${isMe ? `bg-orange-50 text-stone-900` : 'text-stone-600 hover:bg-stone-50'}`}>
+                          <span className="flex items-center gap-3">
+                            <span className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: m.color}}></span>
+                            {m.name} {isMe && <span className="text-[9px] text-orange-600 ml-1 italic font-serif">You</span>}
+                          </span>
+                          <span className={`font-mono text-sm ${themeClass.textTheme}`}>{tot}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* 架構一致性分析 */}
+            {subItemsList.length > 0 && (
+              <div className="mt-16 pt-12 border-t border-stone-200">
+                <div className="mb-8">
+                  <h3 className="text-2xl font-serif text-stone-900 flex items-center tracking-wide mb-3">
+                    <GitMerge className="w-6 h-6 mr-3 text-orange-600" />
+                    架構一致性比對
+                    <span className="ml-4 px-2 py-0.5 bg-stone-100 text-stone-500 text-[10px] uppercase tracking-widest font-sans rounded-sm">Alignment Analysis</span>
+                  </h3>
+                  <p className="text-stone-500 text-sm max-w-3xl leading-relaxed">
+                    比對「大專案」與「各子項目」的團隊均值分佈。若大專案均值遠高於子項目，可能意味著整體概念未能有效落實於局部實踐中；反之，則可能有隱藏的局部價值尚未被提昇至專案層次。
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="bg-white p-6 rounded-sm border border-stone-200 shadow-sm">
+                    <h4 className="font-serif text-stone-800 text-base mb-6 tracking-wide text-center">Macro vs Micro Radar</h4>
+                    <div style={{ width: '100%', height: '350px' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={alignmentData}>
+                          <PolarGrid stroke="#e7e5e4" />
+                          <PolarAngleAxis dataKey="subject" tick={{ fill: '#57534e', fontSize: 12, fontWeight: 500 }} />
+                          <PolarRadiusAxis angle={30} domain={[0, 5]} tickCount={6} tick={{ fontSize: 9, fill: '#a8a29e' }} axisLine={false} />
+                          
+                          <Radar name="大專案 (團隊均值)" dataKey="mainProject" stroke="#ea580c" fill="#ea580c" fillOpacity={0.15} strokeWidth={2} />
+                          <Radar name="子項目 (總體均值)" dataKey="subItemsAverage" stroke="#57534e" fill="none" strokeWidth={2} strokeDasharray="5 5" />
+                          
+                          <Tooltip wrapperClassName="rounded-sm border border-stone-200 shadow-sm" contentStyle={{ backgroundColor: '#ffffff', borderRadius: '2px', border: 'none', color: '#1c1917', fontSize: '12px' }} />
+                          <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '15px', color: '#57534e' }} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-sm border border-stone-200 shadow-sm overflow-hidden flex flex-col">
+                    <div className="p-4 border-b border-stone-100 bg-stone-50/50">
+                      <h4 className="font-serif text-stone-800 text-base tracking-wide">Dimension Variance</h4>
+                    </div>
+                    <div className="flex-1 overflow-x-auto p-4">
+                      <table className="w-full text-sm text-left border-collapse">
+                        <thead className="text-stone-400 text-[10px] tracking-[0.1em] uppercase border-b border-stone-200">
+                          <tr>
+                            <th className="pb-3 font-medium">Dimension</th>
+                            <th className="pb-3 font-medium text-right text-orange-600">Main Avg</th>
+                            <th className="pb-3 font-medium text-right text-stone-600">Sub Avg</th>
+                            <th className="pb-3 font-medium text-right">Gap</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100">
+                          {alignmentData.map((data, i) => {
+                            const gap = (data.mainProject - data.subItemsAverage).toFixed(1);
+                            const isSignificant = Math.abs(gap) >= 1.0;
+                            return (
+                              <tr key={i} className="hover:bg-stone-50/50 transition-colors">
+                                <td className="py-4 font-medium text-stone-700">{data.subject}</td>
+                                <td className="py-4 font-mono text-right text-stone-800">{data.mainProject > 0 ? data.mainProject : '-'}</td>
+                                <td className="py-4 font-mono text-right text-stone-600">{data.subItemsAverage > 0 ? data.subItemsAverage : '-'}</td>
+                                <td className={`py-4 font-mono text-right font-medium ${isSignificant ? 'text-orange-600' : 'text-stone-400'}`}>
+                                  {gap > 0 ? `+${gap}` : gap}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="p-4 bg-stone-50 text-xs text-stone-500 border-t border-stone-100">
+                      * Gap = Main Avg - Sub Avg. 差距超過 1.0 標示為橘色，建議團隊進行探討。
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 底部：並列式數據總表 */}
+            <div className="bg-white rounded-sm border border-stone-200 shadow-sm overflow-hidden mt-12">
+              <div className="p-5 border-b border-stone-200 flex justify-between items-center gap-4 bg-stone-50/50">
+                <h3 className="text-lg md:text-xl font-serif text-stone-900 tracking-wide flex items-center">
+                  層級分數總表
+                  <span className="hidden sm:inline-block ml-4 px-2 py-0.5 bg-white border border-stone-200 text-stone-500 text-[10px] uppercase tracking-widest font-sans rounded-sm">Data Report</span>
+                </h3>
+                <button onClick={exportToCSV} className="flex items-center gap-1.5 text-stone-400 hover:text-orange-600 transition-colors text-[11px] uppercase tracking-widest font-medium ml-auto sm:ml-0" title="匯出 CSV">
+                  <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Export</span>
+                </button>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left border-collapse">
+                  <thead className="bg-white text-stone-400 text-[10px] tracking-[0.15em] uppercase border-b border-stone-200">
+                    <tr>
+                      <th className="p-4 font-medium whitespace-nowrap">Member</th>
+                      <th className="p-4 font-medium whitespace-nowrap border-l border-stone-100 text-orange-600">Main Project (25)</th>
+                      {subItemsList.map(sub => (
+                        <th key={sub.id} className="p-4 font-medium whitespace-nowrap border-l border-stone-100">{sub.name} (25)</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100 text-sm">
+                    {MEMBERS.map(m => {
+                      const mainScore = getMemberTotal(selectedProject.evaluations, m.id);
+                      const subScores = subItemsList.map(sub => getMemberTotal(sub.evaluations, m.id));
+                      const isCurrent = m.id === currentMemberId;
+
+                      return (
+                        <tr key={m.id} className={`transition-colors ${isCurrent ? 'bg-orange-50/30' : 'hover:bg-stone-50/50'}`}>
+                          <td className="p-4 font-medium flex items-center gap-3 whitespace-nowrap text-stone-700">
+                            <span className="w-2 h-2 rounded-full" style={{backgroundColor: m.color}}></span>
+                            {m.name} {isCurrent && <span className="font-serif italic text-[10px] text-orange-500 ml-1">You</span>}
+                          </td>
+                          <td className={`p-4 font-mono text-base border-l border-stone-100 ${mainScore > 0 ? 'text-stone-800' : 'text-stone-300'}`}>{mainScore > 0 ? mainScore : '-'}</td>
+                          {subScores.map((score, i) => (
+                            <td key={i} className={`p-4 font-mono text-base border-l border-stone-100 ${score > 0 ? 'text-stone-600' : 'text-stone-300'}`}>{score > 0 ? score : '-'}</td>
+                          ))}
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </main>
+
+          {/* 新增子項目 Modal */}
+          {isAddingSubItem && (
+            <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-sm p-8 max-w-md w-full shadow-xl border border-stone-200 animate-in zoom-in-95 duration-200">
+                <h3 className="text-xl font-serif text-stone-900 mb-2 tracking-wide">新增子項目</h3>
+                <p className="text-stone-500 text-sm mb-6">請為此專案輸入需要獨立評估的子項目名稱（如：主視覺、網站設計）。</p>
+                <form onSubmit={confirmAddSubItem}>
+                  <input
+                    autoFocus
+                    type="text"
+                    className="w-full p-3 rounded-sm bg-stone-50 border border-stone-200 focus:outline-none focus:bg-white focus:border-orange-500 transition-colors mb-6 text-stone-800 placeholder-stone-400"
+                    placeholder="輸入名稱..."
+                    value={newSubItemName}
+                    onChange={(e) => setNewSubItemName(e.target.value)}
+                  />
+                  <div className="flex justify-end gap-3">
+                    <button type="button" onClick={() => {setIsAddingSubItem(false); setNewSubItemName('');}} className="px-5 py-2.5 text-sm font-medium tracking-wide text-stone-500 hover:text-stone-800 transition-colors">取消</button>
+                    <button type="submit" disabled={!newSubItemName.trim()} className="px-6 py-2.5 rounded-sm text-sm font-medium tracking-wide bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm shadow-orange-600/20">確認新增</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* 編輯大專案 Modal */}
+          {isEditingProject && (
+            <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-sm p-8 max-w-md w-full shadow-xl border border-stone-200 animate-in zoom-in-95 duration-200">
+                <h3 className="text-xl font-serif text-stone-900 mb-2 tracking-wide">編輯專案</h3>
+                <p className="text-stone-500 text-sm mb-6">修改大專案的名稱與簡述。</p>
+                <form onSubmit={confirmEditProject}>
+                  <input
+                    autoFocus
+                    type="text"
+                    className="w-full p-3 rounded-sm bg-stone-50 border border-stone-200 focus:outline-none focus:bg-white focus:border-orange-500 transition-colors mb-4 text-stone-800 placeholder-stone-400"
+                    placeholder="專案名稱"
+                    value={editProjectData.name}
+                    onChange={(e) => setEditProjectData({ ...editProjectData, name: e.target.value })}
+                  />
+                  <textarea 
+                    className="w-full p-3 rounded-sm bg-stone-50 border border-stone-200 focus:outline-none focus:bg-white focus:border-orange-500 transition-colors mb-6 text-stone-800 placeholder-stone-400 resize-none"
+                    placeholder="專案簡述..."
+                    rows="3"
+                    value={editProjectData.description}
+                    onChange={(e) => setEditProjectData({ ...editProjectData, description: e.target.value })}
+                  />
+                  <div className="flex justify-end gap-3">
+                    <button type="button" onClick={() => setIsEditingProject(false)} className="px-5 py-2.5 text-sm font-medium tracking-wide text-stone-500 hover:text-stone-800 transition-colors">取消</button>
+                    <button type="submit" disabled={!editProjectData.name.trim()} className="px-6 py-2.5 rounded-sm text-sm font-medium tracking-wide bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm shadow-orange-600/20">儲存變更</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+    
+    // --- 應用程式啟動 ---
+    const root = createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
