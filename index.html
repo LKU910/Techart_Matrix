@@ -60,7 +60,7 @@
       User, Layout, ChevronLeft, Plus, Trash2, X,
       Target, Info, ChevronDown, ChevronUp, Download, 
       Users, FileText, Eye, EyeOff, Radar as RadarIcon, CheckCircle2, GitMerge, Loader2, Edit2,
-      GripVertical, ArrowDownAZ, Clock, Settings2
+      GripVertical, ArrowDownAZ, Clock, Settings2, Sparkles, BarChart2
     } from 'lucide-react';
     import { 
       Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, 
@@ -71,9 +71,6 @@
     import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
     import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, writeBatch } from 'firebase/firestore';
 
-    // =========================================================================
-    // ✅ Firebase 設定檔
-    // =========================================================================
     const YOUR_FIREBASE_CONFIG = {
       apiKey: "AIzaSyAk4NOwJKyVMefIi77gh4pnyevJda5HkH0",
       authDomain: "techart-design-quality-list.firebaseapp.com",
@@ -83,7 +80,6 @@
       appId: "1:429057781194:web:68bb237d0473246230f333",
       measurementId: "G-HK2XRHB859"
     };
-    // =========================================================================
 
     const app = initializeApp(YOUR_FIREBASE_CONFIG);
     const auth = getAuth(app);
@@ -93,7 +89,6 @@
       return collection(db, 'projects');
     };
 
-    // --- 1. 常數與設定 ---
     const DIMENSIONS = [
       { 
         key: 'clarity', label: '需求釐清精準度', shortLabel: '需求釐清',
@@ -154,7 +149,7 @@
 
     const MEMBERS = [
       { id: 'm1', name: '慧修', color: '#9f1239' }, 
-      { id: 'm2', name: '建興', color: '#0369a1' }, 
+      { id: 'm2', name: 'PM', color: '#0369a1' }, 
       { id: 'm3', name: '阿寬', color: '#15803d' }, 
       { id: 'm4', name: '浩偉', color: '#6b21a8' }, 
       { id: 'm5', name: '阿涵', color: '#b45309' }, 
@@ -178,42 +173,74 @@
       }
     ];
 
+    const getProjectMainRadarData = (project) => {
+      const evals = project.evaluations || [];
+      const dimAverages = {};
+      DIMENSIONS.forEach(dim => {
+        const sum = evals.reduce((acc, curr) => acc + (curr.scores && curr.scores[dim.key] ? curr.scores[dim.key] : 0), 0);
+        dimAverages[dim.key] = evals.length > 0 ? Number((sum / evals.length).toFixed(1)) : 0;
+      });
+      return DIMENSIONS.map(dim => ({
+        subject: dim.shortLabel,
+        fullMark: 5,
+        average: dimAverages[dim.key]
+      }));
+    };
+
+    const getProjectAlignmentData = (project) => {
+      return DIMENSIONS.map(dim => {
+        const mainEvals = project.evaluations || [];
+        const mainSum = mainEvals.reduce((acc, curr) => acc + (curr.scores?.[dim.key] || 0), 0);
+        const mainAvg = mainEvals.length > 0 ? (mainSum / mainEvals.length) : 0;
+        const subItems = project.subItems || [];
+        let subSum = 0;
+        let subEvalCount = 0;
+        subItems.forEach(sub => {
+          const sEvals = sub.evaluations || [];
+          sEvals.forEach(e => {
+            if (e.scores && e.scores[dim.key]) {
+              subSum += e.scores[dim.key];
+              subEvalCount++;
+            }
+          });
+        });
+        const subAvg = subEvalCount > 0 ? (subSum / subEvalCount) : 0;
+        return {
+          subject: dim.shortLabel,
+          mainProject: Number(mainAvg.toFixed(1)),
+          subItemsAverage: Number(subAvg.toFixed(1)),
+          fullMark: 5
+        };
+      });
+    };
+
+
     function App() {
       const [user, setUser] = useState(null);
       const [loadingDb, setLoadingDb] = useState(true);
-
       const [currentMemberId, setCurrentMemberId] = useState(null); 
       const [projects, setProjects] = useState([]); 
       const [selectedProjectId, setSelectedProjectId] = useState(null); 
       const [activeItemId, setActiveItemId] = useState('main'); 
-      
       const [isAddingProject, setIsAddingProject] = useState(false);
       const [showAllMembers, setShowAllMembers] = useState(false); 
       const [expandedRubrics, setExpandedRubrics] = useState({});
       const [newProject, setNewProject] = useState({ name: '', description: '' });
-
       const [deletingId, setDeletingId] = useState(null); 
       const [isAddingSubItem, setIsAddingSubItem] = useState(false); 
       const [newSubItemName, setNewSubItemName] = useState(''); 
-
       const [draftScores, setDraftScores] = useState({});
-
       const [isEditingProject, setIsEditingProject] = useState(false);
       const [editProjectData, setEditProjectData] = useState({ name: '', description: '' });
       const [deletingSubItemId, setDeletingSubItemId] = useState(null);
-
-      // 排序狀態
-      const [sortMethod, setSortMethod] = useState('date'); // 'date' | 'name' | 'manual'
+      const [sortMethod, setSortMethod] = useState('date'); 
       const [draggedIndex, setDraggedIndex] = useState(null);
       const [dragOverIndex, setDragOverIndex] = useState(null);
+      const [isOverviewMode, setIsOverviewMode] = useState(false);
 
       useEffect(() => {
         const initAuth = async () => {
-          try {
-            await signInAnonymously(auth);
-          } catch (error) {
-            console.error("Auth error:", error);
-          }
+          try { await signInAnonymously(auth); } catch (error) { console.error("Auth error:", error); }
         };
         initAuth();
         const unsubscribe = onAuthStateChanged(auth, setUser);
@@ -237,18 +264,16 @@
           console.error("Firestore error:", error);
           setLoadingDb(false);
         });
-
         return () => unsubscribe();
       }, [user]);
 
-      // --- 核心：排序邏輯 ---
+      const isAdmin = currentMemberId === 'm2' || currentMemberId === 'm3';
+
       const sortedProjects = useMemo(() => {
         let list = [...projects];
-        if (sortMethod === 'date') {
-          list.sort((a, b) => b.id.localeCompare(a.id));
-        } else if (sortMethod === 'name') {
-          list.sort((a, b) => a.name.localeCompare(b.name));
-        } else if (sortMethod === 'manual') {
+        if (sortMethod === 'date') list.sort((a, b) => b.id.localeCompare(a.id));
+        else if (sortMethod === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
+        else if (sortMethod === 'manual') {
           list.sort((a, b) => {
             const orderA = a.order !== undefined ? a.order : Number.MAX_SAFE_INTEGER;
             const orderB = b.order !== undefined ? b.order : Number.MAX_SAFE_INTEGER;
@@ -258,13 +283,8 @@
         return list;
       }, [projects, sortMethod]);
 
-      const currentMemberInfo = useMemo(() => {
-        return MEMBERS.find(m => m.id === currentMemberId) || MEMBERS[0];
-      }, [currentMemberId]);
-
-      const selectedProject = useMemo(() => {
-        return projects.find(p => p.id === selectedProjectId) || null;
-      }, [projects, selectedProjectId]);
+      const currentMemberInfo = useMemo(() => MEMBERS.find(m => m.id === currentMemberId) || MEMBERS[0], [currentMemberId]);
+      const selectedProject = useMemo(() => projects.find(p => p.id === selectedProjectId) || null, [projects, selectedProjectId]);
 
       const activeItem = useMemo(() => {
         if (!selectedProject) return null;
@@ -277,17 +297,12 @@
       useEffect(() => {
         if (activeItem && currentMemberId) {
           const existingEval = (activeItem.evaluations || []).find(e => e.memberId === currentMemberId);
-          if (existingEval && existingEval.scores) {
-            setDraftScores({ ...existingEval.scores });
-          } else {
-            setDraftScores({});
-          }
+          if (existingEval && existingEval.scores) setDraftScores({ ...existingEval.scores });
+          else setDraftScores({});
         }
       }, [activeItem, currentMemberId]);
 
-      const isDraftComplete = useMemo(() => {
-        return DIMENSIONS.every(dim => (draftScores[dim.key] || 0) > 0);
-      }, [draftScores]);
+      const isDraftComplete = useMemo(() => DIMENSIONS.every(dim => (draftScores[dim.key] || 0) > 0), [draftScores]);
 
       const hasUnsavedChanges = useMemo(() => {
         const existingEval = (activeItem?.evaluations || []).find(e => e.memberId === currentMemberId);
@@ -300,64 +315,29 @@
         const dimAverages = {};
         let totalAverageScore = 0;
         const evals = activeItem.evaluations || [];
-
         DIMENSIONS.forEach(dim => {
-          const sum = evals.reduce((acc, curr) => {
-            const score = (curr.scores && curr.scores[dim.key]) ? curr.scores[dim.key] : 0;
-            return acc + score;
-          }, 0);
+          const sum = evals.reduce((acc, curr) => acc + ((curr.scores && curr.scores[dim.key]) ? curr.scores[dim.key] : 0), 0);
           const avg = evals.length > 0 ? (sum / evals.length) : 0;
           dimAverages[dim.key] = Number(avg.toFixed(1));
           totalAverageScore += avg;
         });
-
         return { averages: dimAverages, total: Number(totalAverageScore.toFixed(1)) };
       }, [activeItem]);
 
       const radarData = useMemo(() => {
         if (!activeItem || !aggregatedScores) return [];
         const evals = activeItem.evaluations || [];
-        
         return DIMENSIONS.map(dim => {
           const dataPoint = { subject: dim.shortLabel, fullMark: 5, average: aggregatedScores.averages[dim.key] || 0 };
-          evals.forEach(e => {
-            dataPoint[e.memberId] = (e.scores && e.scores[dim.key]) ? e.scores[dim.key] : 0;
-          });
+          evals.forEach(e => { dataPoint[e.memberId] = (e.scores && e.scores[dim.key]) ? e.scores[dim.key] : 0; });
           return dataPoint;
         });
       }, [activeItem, aggregatedScores]);
 
       const alignmentData = useMemo(() => {
         if (!selectedProject) return [];
-        
-        return DIMENSIONS.map(dim => {
-          const mainEvals = selectedProject.evaluations || [];
-          const mainSum = mainEvals.reduce((acc, curr) => acc + (curr.scores?.[dim.key] || 0), 0);
-          const mainAvg = mainEvals.length > 0 ? (mainSum / mainEvals.length) : 0;
-
-          const subItems = selectedProject.subItems || [];
-          let subSum = 0;
-          let subEvalCount = 0;
-          subItems.forEach(sub => {
-            const sEvals = sub.evaluations || [];
-            sEvals.forEach(e => {
-              if (e.scores && e.scores[dim.key]) {
-                subSum += e.scores[dim.key];
-                subEvalCount++;
-              }
-            });
-          });
-          const subAvg = subEvalCount > 0 ? (subSum / subEvalCount) : 0;
-
-          return {
-            subject: dim.shortLabel,
-            mainProject: Number(mainAvg.toFixed(1)),
-            subItemsAverage: Number(subAvg.toFixed(1)),
-            fullMark: 5
-          };
-        });
+        return getProjectAlignmentData(selectedProject);
       }, [selectedProject]);
-
 
       const handleDraftScoreChange = (dimensionKey, newScore) => {
         setDraftScores(prev => ({ ...prev, [dimensionKey]: newScore }));
@@ -365,200 +345,108 @@
 
       const submitScores = async () => {
         if (!isDraftComplete || !user || !selectedProject) return;
-
-        let updatedData = {};
-
         const updateEvaluations = (evals) => {
           const currentEvals = evals || [];
           const hasEval = currentEvals.find(e => e.memberId === currentMemberId);
-          if (hasEval) {
-            return currentEvals.map(e => e.memberId === currentMemberId
-              ? { ...e, scores: { ...draftScores } } : e
-            );
-          } else {
-            return [...currentEvals, { memberId: currentMemberId, scores: { ...draftScores } }];
-          }
+          if (hasEval) return currentEvals.map(e => e.memberId === currentMemberId ? { ...e, scores: { ...draftScores } } : e);
+          else return [...currentEvals, { memberId: currentMemberId, scores: { ...draftScores } }];
         };
-
+        let updatedData = {};
         if (activeItemId === 'main') {
           updatedData = { evaluations: updateEvaluations(selectedProject.evaluations) };
         } else {
           const subItems = selectedProject.subItems || [];
-          updatedData = {
-            subItems: subItems.map(sub => 
-              sub.id === activeItemId ? { ...sub, evaluations: updateEvaluations(sub.evaluations) } : sub
-            )
-          };
+          updatedData = { subItems: subItems.map(sub => sub.id === activeItemId ? { ...sub, evaluations: updateEvaluations(sub.evaluations) } : sub) };
         }
-
         try {
           const projectsRef = getProjectsCollectionRef();
-          const docRef = doc(projectsRef, selectedProject.id);
-          await updateDoc(docRef, updatedData);
-        } catch (err) {
-          console.error("Update failed:", err);
-        }
+          await updateDoc(doc(projectsRef, selectedProject.id), updatedData);
+        } catch (err) { console.error("Update failed:", err); }
       };
 
-      // --- 刪除評分 (Reset) 功能 ---
       const deleteScores = async () => {
         if (!user || !selectedProject) return;
-
-        const removeEvaluation = (evals) => {
-          const currentEvals = evals || [];
-          return currentEvals.filter(e => e.memberId !== currentMemberId);
-        };
-
+        const removeEvaluation = (evals) => (evals || []).filter(e => e.memberId !== currentMemberId);
         let updatedData = {};
         if (activeItemId === 'main') {
           updatedData = { evaluations: removeEvaluation(selectedProject.evaluations) };
         } else {
           const subItems = selectedProject.subItems || [];
-          updatedData = {
-            subItems: subItems.map(sub => 
-              sub.id === activeItemId ? { ...sub, evaluations: removeEvaluation(sub.evaluations) } : sub
-            )
-          };
+          updatedData = { subItems: subItems.map(sub => sub.id === activeItemId ? { ...sub, evaluations: removeEvaluation(sub.evaluations) } : sub) };
         }
-
         try {
-          const projectsRef = getProjectsCollectionRef();
-          const docRef = doc(projectsRef, selectedProject.id);
-          await updateDoc(docRef, updatedData);
+          await updateDoc(doc(getProjectsCollectionRef(), selectedProject.id), updatedData);
           setDraftScores({});
-        } catch (err) {
-          console.error("Delete score failed:", err);
-        }
+        } catch (err) { console.error("Delete score failed:", err); }
       };
 
-      const toggleRubric = (key) => {
-        setExpandedRubrics(prev => ({ ...prev, [key]: !prev[key] }));
-      };
+      const toggleRubric = (key) => setExpandedRubrics(prev => ({ ...prev, [key]: !prev[key] }));
 
       const handleAddProject = async (e) => {
         e.preventDefault();
         if (!newProject.name || !newProject.name.trim() || !user) return;
-        
         const newId = 'p' + Date.now().toString();
         const maxOrder = projects.length > 0 ? Math.max(...projects.map(p => p.order || 0)) : 0;
-        
-        const createdProject = {
-          id: newId,
-          name: newProject.name.trim(),
-          description: newProject.description || '',
-          evaluations: [],
-          subItems: [],
-          order: maxOrder + 1
-        };
-        
+        const createdProject = { id: newId, name: newProject.name.trim(), description: newProject.description || '', evaluations: [], subItems: [], order: maxOrder + 1 };
         setIsAddingProject(false);
         setNewProject({ name: '', description: '' });
-
-        try {
-          const projectsRef = getProjectsCollectionRef();
-          const docRef = doc(projectsRef, newId);
-          await setDoc(docRef, createdProject);
-        } catch (err) {
-          console.error("Firebase setDoc failed:", err);
-        }
+        try { await setDoc(doc(getProjectsCollectionRef(), newId), createdProject); } catch (err) { console.error("setDoc failed:", err); }
       };
 
       const confirmEditProject = async (e) => {
         e.preventDefault();
         if (!editProjectData.name.trim() || !user || !selectedProject) return;
-        
         try {
-          const projectsRef = getProjectsCollectionRef();
-          const docRef = doc(projectsRef, selectedProject.id);
-          await updateDoc(docRef, { 
-            name: editProjectData.name.trim(),
-            description: editProjectData.description.trim()
-          });
+          await updateDoc(doc(getProjectsCollectionRef(), selectedProject.id), { name: editProjectData.name.trim(), description: editProjectData.description.trim() });
           setIsEditingProject(false);
-        } catch (err) {
-          console.error("Firebase updateDoc failed:", err);
-        }
+        } catch (err) { console.error("updateDoc failed:", err); }
       };
 
       const confirmAddSubItem = async (e) => {
         e.preventDefault();
         if (newSubItemName && newSubItemName.trim() && user && selectedProject) {
-          const newSubItem = {
-            id: 's' + Date.now(),
-            name: newSubItemName.trim(),
-            evaluations: []
-          };
-          const currentSubItems = selectedProject.subItems || [];
-          const updatedSubItems = [...currentSubItems, newSubItem];
-          
+          const newSubItem = { id: 's' + Date.now(), name: newSubItemName.trim(), evaluations: [] };
+          const updatedSubItems = [...(selectedProject.subItems || []), newSubItem];
           setNewSubItemName('');
           setIsAddingSubItem(false);
-          setActiveItemId(newSubItem.id); 
-
-          try {
-            const projectsRef = getProjectsCollectionRef();
-            const docRef = doc(projectsRef, selectedProject.id);
-            await updateDoc(docRef, { subItems: updatedSubItems });
-          } catch (err) {
-            console.error("Firebase updateDoc failed:", err);
-          }
+          setActiveItemId(newSubItem.id);
+          try { await updateDoc(doc(getProjectsCollectionRef(), selectedProject.id), { subItems: updatedSubItems }); } catch (err) { console.error("updateDoc failed:", err); }
         }
       };
 
       const deleteSubItem = async (subId) => {
         if (!user || !selectedProject) return;
-        
-        const currentSubItems = selectedProject.subItems || [];
-        const updatedSubItems = currentSubItems.filter(sub => sub.id !== subId);
-        
+        const updatedSubItems = (selectedProject.subItems || []).filter(sub => sub.id !== subId);
         try {
-          const projectsRef = getProjectsCollectionRef();
-          const docRef = doc(projectsRef, selectedProject.id);
-          await updateDoc(docRef, { subItems: updatedSubItems });
-          
-          if (activeItemId === subId) {
-            setActiveItemId('main');
-          }
+          await updateDoc(doc(getProjectsCollectionRef(), selectedProject.id), { subItems: updatedSubItems });
+          if (activeItemId === subId) setActiveItemId('main');
           setDeletingSubItemId(null);
-        } catch (err) {
-          console.error("Firebase updateDoc failed:", err);
-        }
+        } catch (err) { console.error("updateDoc failed:", err); }
       };
 
       const deleteProject = async (id) => {
         setDeletingId(null);
-        setSelectedProjectId(null); 
+        setSelectedProjectId(null);
         if (!user) return;
-
-        try {
-          const projectsRef = getProjectsCollectionRef();
-          await deleteDoc(doc(projectsRef, id));
-        } catch (err) {
-          console.error("Firebase deleteDoc failed:", err);
-        }
+        try { await deleteDoc(doc(getProjectsCollectionRef(), id)); } catch (err) { console.error("deleteDoc failed:", err); }
       };
 
       const getMemberTotal = (evals, memberId) => {
-        const safeEvals = evals || [];
-        const e = safeEvals.find(x => x.memberId === memberId);
+        const e = (evals || []).find(x => x.memberId === memberId);
         if (!e || !e.scores) return 0;
         return DIMENSIONS.reduce((sum, dim) => sum + (e.scores[dim.key] || 0), 0);
       };
 
       const exportToCSV = () => {
         if (!selectedProject) return;
-        let csvContent = `專案名稱,${selectedProject.name}\n專案描述,${selectedProject.description}\n\n`;
-        
         const subItems = selectedProject.subItems || [];
-        const headers = ['評分成員', '整體大專案 (滿分25)', ...subItems.map(s => `${s.name} (滿分25)`)];
-        csvContent += headers.join(',') + '\n';
-
+        let csvContent = `專案名稱,${selectedProject.name}\n專案描述,${selectedProject.description}\n\n`;
+        csvContent += ['評分成員', '整體大專案 (滿分25)', ...subItems.map(s => `${s.name} (滿分25)`)].join(',') + '\n';
         MEMBERS.forEach(m => {
           const mainScore = getMemberTotal(selectedProject.evaluations, m.id);
           const subScores = subItems.map(sub => getMemberTotal(sub.evaluations, m.id));
           csvContent += [m.name, mainScore > 0 ? mainScore : '未評', ...subScores.map(s => s > 0 ? s : '未評')].join(',') + '\n';
         });
-
         const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -567,22 +455,19 @@
         link.click();
       };
 
-      // --- 拖曳排序相關事件 ---
       const handleDragStart = (e, index) => {
-        if (sortMethod !== 'manual') return;
+        if (sortMethod !== 'manual' || !isAdmin) return;
         setDraggedIndex(index);
-        setTimeout(() => {
-          e.target.style.opacity = '0.5';
-        }, 0);
+        setTimeout(() => { e.target.style.opacity = '0.5'; }, 0);
       };
 
       const handleDragEnter = (index) => {
-        if (sortMethod !== 'manual' || draggedIndex === null) return;
+        if (sortMethod !== 'manual' || !isAdmin || draggedIndex === null) return;
         setDragOverIndex(index);
       };
 
       const handleDragEnd = (e) => {
-        if (sortMethod !== 'manual') return;
+        if (sortMethod !== 'manual' || !isAdmin) return;
         e.target.style.opacity = '1';
         setDraggedIndex(null);
         setDragOverIndex(null);
@@ -590,33 +475,22 @@
 
       const handleDrop = async (e, dropIndex) => {
         e.preventDefault();
-        if (sortMethod !== 'manual' || draggedIndex === null || draggedIndex === dropIndex) {
+        if (sortMethod !== 'manual' || !isAdmin || draggedIndex === null || draggedIndex === dropIndex) {
           handleDragEnd(e);
           return;
         }
-
         const newProjectsList = [...sortedProjects];
         const draggedItem = newProjectsList[draggedIndex];
         newProjectsList.splice(draggedIndex, 1);
         newProjectsList.splice(dropIndex, 0, draggedItem);
-
         const updatedProjects = newProjectsList.map((p, idx) => ({ ...p, order: idx }));
-
         handleDragEnd(e);
-
         try {
           const batch = writeBatch(db);
           const projectsRef = getProjectsCollectionRef();
-          
-          updatedProjects.forEach(p => {
-            const docRef = doc(projectsRef, p.id);
-            batch.update(docRef, { order: p.order });
-          });
-          
+          updatedProjects.forEach(p => batch.update(doc(projectsRef, p.id), { order: p.order }));
           await batch.commit();
-        } catch (err) {
-          console.error("Batch update failed:", err);
-        }
+        } catch (err) { console.error("Batch update failed:", err); }
       };
 
       const TechartLogo = ({ large = false }) => (
@@ -626,9 +500,6 @@
             alt="TECHART 天工開物" 
             className={`${large ? 'h-10 md:h-12' : 'h-5 md:h-6'} object-contain mb-3`}
           />
-          <span className={`font-sans font-medium tracking-[0.3em] text-stone-400 pl-[0.3em] ${large ? 'text-xs' : 'text-[8px] md:text-[9px]'}`}>
-            EVALUATION MATRIX
-          </span>
         </div>
       );
 
@@ -641,21 +512,104 @@
         );
       }
 
+      // ==========================================
+      // 視圖：矩陣總覽模式
+      // ==========================================
+      if (isOverviewMode) {
+        return (
+          <div className="min-h-screen bg-[#fdfbf9] font-sans text-stone-800 pb-24 selection:bg-orange-100">
+            <div className="sticky top-0 z-30 bg-[#fdfbf9]/90 backdrop-blur-md border-b border-stone-200 shadow-sm">
+              <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+                <button onClick={() => setIsOverviewMode(false)} className="flex items-center text-stone-500 font-medium text-sm hover:text-orange-600 transition-colors tracking-wide">
+                  <ChevronLeft className="w-4 h-4 mr-1" /> 返回登入頁
+                </button>
+                <TechartLogo />
+              </div>
+            </div>
+
+            <main className="max-w-7xl mx-auto p-4 sm:p-8 space-y-12 animate-in fade-in duration-500 mt-4">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl md:text-4xl font-serif text-stone-900 tracking-wide mb-4">專案矩陣總覽</h2>
+                <p className="text-stone-500 max-w-2xl mx-auto leading-relaxed">綜觀所有專案的整體表現與落差分析，以量化數據輔助設計決策。</p>
+              </div>
+
+              {sortedProjects.length === 0 ? (
+                <div className="text-center text-stone-400 py-20 bg-white border border-stone-200 rounded-sm">目前尚無任何專案資料。</div>
+              ) : (
+                sortedProjects.map(project => {
+                  const mainRadar = getProjectMainRadarData(project);
+                  const alignRadar = getProjectAlignmentData(project);
+                  return (
+                    <div key={project.id} className="bg-white rounded-sm border border-stone-200 shadow-sm overflow-hidden">
+                      <div className="p-6 md:p-8 border-b border-stone-100 bg-stone-50/50">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div>
+                            <div className="text-[10px] uppercase tracking-widest text-orange-600 mb-2 font-medium">Project Review</div>
+                            <h3 className="text-2xl font-serif text-stone-900">{project.name}</h3>
+                          </div>
+                          <div className="text-xs text-stone-400 font-medium flex gap-4">
+                            <span><FileText className="w-3.5 h-3.5 inline mr-1" />{project.subItems?.length || 0} 子項目</span>
+                            <span><Users className="w-3.5 h-3.5 inline mr-1" />{project.evaluations?.length || 0} 評量數</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-10">
+                        <div className="flex flex-col">
+                          <h4 className="font-serif text-stone-800 text-base mb-6 tracking-wide text-center flex items-center justify-center gap-2">
+                            <BarChart2 className="w-4 h-4 text-stone-400" /> 大專案團隊均值
+                          </h4>
+                          <div style={{ width: '100%', height: '320px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <RadarChart cx="50%" cy="50%" outerRadius="70%" data={mainRadar}>
+                                <PolarGrid stroke="#e7e5e4" /> 
+                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#57534e', fontSize: 11, fontWeight: 500 }} />
+                                <PolarRadiusAxis angle={30} domain={[0, 5]} tickCount={6} tick={{ fontSize: 9, fill: '#a8a29e' }} axisLine={false} />
+                                <Radar name="團隊均值" dataKey="average" stroke="#57534e" fill="#57534e" fillOpacity={0.2} strokeWidth={2} />
+                                <Tooltip wrapperClassName="rounded-sm border border-stone-200 shadow-sm" contentStyle={{ backgroundColor: '#ffffff', borderRadius: '2px', border: 'none', color: '#1c1917', fontSize: '12px' }} itemStyle={{color: '#57534e'}} />
+                              </RadarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                        <div className="flex flex-col">
+                          <h4 className="font-serif text-stone-800 text-base mb-6 tracking-wide text-center flex items-center justify-center gap-2">
+                            <GitMerge className="w-4 h-4 text-orange-600" /> 架構一致性比對 (總體 vs 子項目)
+                          </h4>
+                          <div style={{ width: '100%', height: '320px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <RadarChart cx="50%" cy="50%" outerRadius="70%" data={alignRadar}>
+                                <PolarGrid stroke="#e7e5e4" />
+                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#57534e', fontSize: 11, fontWeight: 500 }} />
+                                <PolarRadiusAxis angle={30} domain={[0, 5]} tickCount={6} tick={{ fontSize: 9, fill: '#a8a29e' }} axisLine={false} />
+                                <Radar name="大專案 (團隊均值)" dataKey="mainProject" stroke="#ea580c" fill="#ea580c" fillOpacity={0.15} strokeWidth={2} />
+                                <Radar name="子項目 (總體均值)" dataKey="subItemsAverage" stroke="#57534e" fill="none" strokeWidth={2} strokeDasharray="5 5" />
+                                <Tooltip wrapperClassName="rounded-sm border border-stone-200 shadow-sm" contentStyle={{ backgroundColor: '#ffffff', borderRadius: '2px', border: 'none', color: '#1c1917', fontSize: '12px' }} />
+                                <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '15px', color: '#57534e' }} />
+                              </RadarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </main>
+          </div>
+        );
+      }
+
+      // ==========================================
+      // 視圖一：身分選擇頁
+      // ==========================================
       if (!currentMemberId) {
         return (
-          <div className="min-h-screen bg-[#fdfbf9] flex items-center justify-center p-4 font-sans text-stone-800 selection:bg-orange-100">
-            <div className="bg-white p-10 md:p-14 rounded-sm shadow-sm border border-stone-200 max-w-2xl w-full text-center relative">
+          <div className="min-h-screen bg-[#fdfbf9] flex flex-col items-center justify-center p-4 font-sans text-stone-800 selection:bg-orange-100">
+            <div className="bg-white p-10 md:p-14 rounded-sm shadow-sm border border-stone-200 max-w-2xl w-full text-center relative mb-8">
               <div className="absolute top-0 left-0 w-full h-1 bg-orange-600"></div>
               <div className="flex justify-center mb-10 mt-2">
                 <TechartLogo large={true} />
               </div>
-              <h1 className="text-2xl md:text-3xl font-serif text-stone-900 tracking-wide mb-4">
-                設計品質評量矩陣
-              </h1>
-              <p className="text-stone-500 mb-12 text-sm md:text-base leading-relaxed">
-                請選擇參與評核的身份以登入系統。
-              </p>
-              
+              <h1 className="text-2xl md:text-3xl font-serif text-stone-900 tracking-wide mb-12">設計品質評量矩陣</h1>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {MEMBERS.map(m => (
                   <button 
@@ -669,65 +623,57 @@
                 ))}
               </div>
             </div>
+            <button 
+              onClick={() => setIsOverviewMode(true)}
+              className="flex items-center justify-center gap-2 px-8 py-3 bg-stone-800 text-white rounded-sm text-sm tracking-widest uppercase hover:bg-stone-700 transition-all shadow-md shadow-stone-800/10"
+            >
+              <Sparkles className="w-4 h-4 text-orange-400" /> 進入矩陣總覽
+            </button>
           </div>
         );
       }
 
+      // ==========================================
+      // 視圖二：大專案列表頁
+      // ==========================================
       if (!selectedProject) {
         return (
           <div className="min-h-screen bg-[#fdfbf9] p-4 md:p-8 font-sans selection:bg-orange-100">
             <div className="max-w-5xl mx-auto space-y-8">
               <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 border-b border-stone-200 pb-6">
                 <div className="flex items-center gap-5">
-                  <button 
-                    onClick={() => setCurrentMemberId(null)} 
-                    className="p-2 -ml-2 text-stone-400 hover:text-orange-600 transition-colors"
-                    title="返回身份選擇"
-                  >
+                  <button onClick={() => setCurrentMemberId(null)} className="p-2 -ml-2 text-stone-400 hover:text-orange-600 transition-colors">
                     <ChevronLeft className="w-5 h-5" />
                   </button>
                   <TechartLogo />
                 </div>
-                
                 <div className="w-full sm:w-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
-                  
                   <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-sm border border-stone-200 text-xs text-stone-500 font-medium">
-                    <button 
-                      onClick={() => setSortMethod('date')} 
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm transition-all ${sortMethod === 'date' ? 'bg-white text-stone-900 shadow-sm' : 'hover:text-stone-700'}`}
-                    >
+                    <button onClick={() => setSortMethod('date')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm transition-all ${sortMethod === 'date' ? 'bg-white text-stone-900 shadow-sm' : 'hover:text-stone-700'}`}>
                       <Clock className="w-3.5 h-3.5" /> 最新
                     </button>
-                    <button 
-                      onClick={() => setSortMethod('name')} 
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm transition-all ${sortMethod === 'name' ? 'bg-white text-stone-900 shadow-sm' : 'hover:text-stone-700'}`}
-                    >
+                    <button onClick={() => setSortMethod('name')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm transition-all ${sortMethod === 'name' ? 'bg-white text-stone-900 shadow-sm' : 'hover:text-stone-700'}`}>
                       <ArrowDownAZ className="w-3.5 h-3.5" /> 名稱
                     </button>
-                    <button 
-                      onClick={() => setSortMethod('manual')} 
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm transition-all ${sortMethod === 'manual' ? 'bg-white text-orange-700 shadow-sm' : 'hover:text-stone-700'}`}
-                    >
+                    <button onClick={() => setSortMethod('manual')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm transition-all ${sortMethod === 'manual' ? 'bg-white text-orange-700 shadow-sm' : 'hover:text-stone-700'}`}>
                       <Settings2 className="w-3.5 h-3.5" /> 自訂
                     </button>
                   </div>
-
                   <div className="flex items-center gap-4">
                     <div className="text-sm font-medium text-stone-500 bg-stone-50 px-3 py-1.5 rounded-lg border border-stone-100 hidden sm:block">
                       User: <span style={{color: currentMemberInfo.color}} className="font-bold ml-1">{currentMemberInfo.name}</span>
                     </div>
-                    <button 
-                      onClick={() => setIsAddingProject(!isAddingProject)}
-                      className="flex items-center justify-center gap-2 px-5 py-2.5 bg-orange-600 text-white rounded-sm text-sm tracking-wide hover:bg-orange-700 transition-colors shadow-sm shadow-orange-600/20"
-                    >
-                      {isAddingProject ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                      {isAddingProject ? '取消建立' : '建立大專案'}
-                    </button>
+                    {isAdmin && (
+                      <button onClick={() => setIsAddingProject(!isAddingProject)} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-orange-600 text-white rounded-sm text-sm tracking-wide hover:bg-orange-700 transition-colors shadow-sm shadow-orange-600/20">
+                        {isAddingProject ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                        {isAddingProject ? '取消建立' : '建立大專案'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </header>
 
-              {isAddingProject && (
+              {isAdmin && isAddingProject && (
                 <form onSubmit={handleAddProject} className="bg-white p-8 rounded-sm border-t-2 border-t-orange-600 border border-stone-200 shadow-sm animate-in fade-in slide-in-from-top-2">
                   <h3 className="font-serif text-lg text-stone-800 mb-4 tracking-wide">建立新專案</h3>
                   <input type="text" placeholder="專案名稱" required className="w-full mb-4 p-4 rounded-sm bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 focus:outline-none focus:bg-white focus:border-orange-500 transition-all font-medium" value={newProject.name} onChange={(e) => setNewProject({ ...newProject, name: e.target.value })} />
@@ -744,68 +690,49 @@
                   const evals = project.evaluations || [];
                   const isManualMode = sortMethod === 'manual';
                   const isDragOver = dragOverIndex === index;
-                  
                   return (
                     <div 
                       key={project.id} 
-                      className={`relative group ${isDragOver ? 'drag-over' : ''} ${isManualMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                      draggable={isManualMode}
+                      className={`relative group ${isDragOver ? 'drag-over' : ''} ${isManualMode && isAdmin ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                      draggable={isManualMode && isAdmin}
                       onDragStart={(e) => handleDragStart(e, index)}
                       onDragEnter={() => handleDragEnter(index)}
                       onDragOver={(e) => e.preventDefault()}
                       onDragEnd={handleDragEnd}
                       onDrop={(e) => handleDrop(e, index)}
                     >
-                      {isManualMode && (
+                      {isManualMode && isAdmin && (
                         <div className="absolute top-1/2 -left-4 transform -translate-y-1/2 text-stone-300 opacity-50 group-hover:opacity-100 transition-opacity">
                           <GripVertical className="w-5 h-5" />
                         </div>
                       )}
-
                       <button 
-                        onClick={() => {
-                          if(draggedIndex !== null) return;
-                          setSelectedProjectId(project.id);
-                          setActiveItemId('main');
-                        }} 
-                        className={`w-full text-left bg-white p-8 rounded-sm border border-stone-200 hover:border-orange-400 hover:shadow-sm transition-all duration-300 flex flex-col h-full ${isManualMode ? 'pointer-events-none group-hover:pointer-events-auto' : ''}`}
+                        onClick={() => { if(draggedIndex !== null) return; setSelectedProjectId(project.id); setActiveItemId('main'); }} 
+                        className={`w-full text-left bg-white p-8 rounded-sm border border-stone-200 hover:border-orange-400 hover:shadow-sm transition-all duration-300 flex flex-col h-full ${isManualMode && isAdmin ? 'pointer-events-none group-hover:pointer-events-auto' : ''}`}
                       >
                         <div className="text-[10px] uppercase tracking-widest text-orange-600 mb-2 font-medium">Project</div>
                         <h3 className="font-serif text-2xl text-stone-900 mb-3 group-hover:text-orange-700 transition-colors pr-10">{project.name}</h3>
                         <p className="text-stone-500 text-sm line-clamp-2 mb-8 flex-1 leading-relaxed">{project.description}</p>
-                        
                         <div className="flex items-center gap-4 text-xs font-medium text-stone-400 border-t border-stone-100 pt-4 w-full">
-                          <span className="flex items-center gap-1.5">
-                            <FileText className="w-3.5 h-3.5 text-stone-300" />
-                            {subItems.length} 子項目
-                          </span>
-                          <span className="flex items-center gap-1.5">
-                            <Users className="w-3.5 h-3.5 text-stone-300" />
-                            {evals.length} 份評量
-                          </span>
+                          <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-stone-300" />{subItems.length} 子項目</span>
+                          <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-stone-300" />{evals.length} 份評量</span>
                         </div>
                       </button>
-                      
-                      {deletingId === project.id ? (
-                        <div 
-                          onClick={(e) => e.stopPropagation()} 
-                          className="absolute top-6 right-6 flex items-center bg-red-50 text-red-800 px-3 py-1.5 rounded-sm border border-red-200 z-10 animate-in fade-in"
-                        >
-                          <span className="text-xs font-medium tracking-wide mr-2">確認刪除</span>
-                          <button onClick={() => deleteProject(project.id)} className="p-1 hover:bg-red-100 text-red-700 transition-colors mr-1"><CheckCircle2 className="w-4 h-4" /></button>
-                          <button onClick={() => setDeletingId(null)} className="p-1 hover:bg-red-100 text-red-700 transition-colors"><X className="w-4 h-4" /></button>
-                        </div>
-                      ) : (
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); setDeletingId(project.id); }} 
-                          className="absolute top-8 right-8 text-stone-300 hover:text-red-700 transition-colors opacity-0 group-hover:opacity-100" 
-                          title="刪除大專案"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      {isAdmin && (
+                        deletingId === project.id ? (
+                          <div onClick={(e) => e.stopPropagation()} className="absolute top-6 right-6 flex items-center bg-red-50 text-red-800 px-3 py-1.5 rounded-sm border border-red-200 z-10 animate-in fade-in">
+                            <span className="text-xs font-medium tracking-wide mr-2">確認刪除</span>
+                            <button onClick={() => deleteProject(project.id)} className="p-1 hover:bg-red-100 text-red-700 transition-colors mr-1"><CheckCircle2 className="w-4 h-4" /></button>
+                            <button onClick={() => setDeletingId(null)} className="p-1 hover:bg-red-100 text-red-700 transition-colors"><X className="w-4 h-4" /></button>
+                          </div>
+                        ) : (
+                          <button onClick={(e) => { e.stopPropagation(); setDeletingId(project.id); }} className="absolute top-8 right-8 text-stone-300 hover:text-red-700 transition-colors opacity-0 group-hover:opacity-100">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )
                       )}
                     </div>
-                  )
+                  );
                 })}
               </div>
             </div>
@@ -813,9 +740,11 @@
         );
       }
 
+      // ==========================================
+      // 視圖三：專案評分工作台
+      // ==========================================
       const subItemsList = selectedProject.subItems || [];
       const isMainActive = activeItemId === 'main';
-
       const themeClass = {
         bgTheme: isMainActive ? 'bg-orange-600' : 'bg-stone-700',
         bgLight: isMainActive ? 'bg-orange-50' : 'bg-stone-50',
@@ -824,21 +753,17 @@
         borderTheme: isMainActive ? 'border-orange-600' : 'border-stone-700',
         borderLight: isMainActive ? 'border-orange-200' : 'border-stone-300',
       };
-
       const existingEval = (activeItem.evaluations || []).find(e => e.memberId === currentMemberId);
 
       return (
         <div className="min-h-screen bg-[#fdfbf9] font-sans text-stone-800 pb-24 selection:bg-orange-100">
-          
           <div className="sticky top-0 z-30 bg-[#fdfbf9]/90 backdrop-blur-md border-b border-stone-200">
             <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
               <button onClick={() => setSelectedProjectId(null)} className="flex items-center text-stone-500 font-medium text-sm hover:text-orange-600 transition-colors tracking-wide">
                 <ChevronLeft className="w-4 h-4 mr-1" /> 返回大廳
               </button>
               <div className="flex items-center gap-4">
-                <div className="hidden sm:block opacity-80 scale-75 transform origin-right">
-                  <TechartLogo />
-                </div>
+                <div className="hidden sm:block opacity-80 scale-75 transform origin-right"><TechartLogo /></div>
                 <div className="flex items-center pl-4 sm:border-l sm:border-stone-300 text-sm">
                   <span className="text-stone-400 mr-2 tracking-wide">評量者</span>
                   <span className="flex items-center gap-2 font-serif italic text-stone-700">
@@ -851,41 +776,29 @@
           </div>
 
           <main className="max-w-6xl mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in duration-500 mt-4">
-            
             <div className="relative bg-white p-6 md:p-8 rounded-sm border border-stone-200 shadow-sm pr-12 overflow-hidden">
               <div className="absolute top-0 left-0 w-1 h-full bg-orange-600"></div>
-              
-              <div className="absolute top-6 right-6 flex items-center gap-2">
-                {deletingId === selectedProject.id ? (
-                  <div className="flex items-center bg-red-50 text-red-800 px-3 py-1.5 rounded-sm border border-red-200 z-10 animate-in fade-in">
-                    <span className="text-xs font-medium mr-3">確認刪除專案</span>
-                    <button onClick={() => deleteProject(selectedProject.id)} className="p-1 hover:bg-red-100 text-red-700 transition-colors mr-1"><CheckCircle2 className="w-4 h-4" /></button>
-                    <button onClick={() => setDeletingId(null)} className="p-1 hover:bg-red-100 text-red-700 transition-colors"><X className="w-4 h-4" /></button>
-                  </div>
-                ) : (
-                  <>
-                    <button 
-                      onClick={() => {
-                        setEditProjectData({ name: selectedProject.name, description: selectedProject.description });
-                        setIsEditingProject(true);
-                      }} 
-                      className="p-2 text-stone-300 hover:text-orange-600 transition-colors" 
-                      title="編輯大專案"
-                    >
-                      <Edit2 className="w-5 h-5" />
-                    </button>
-                    <button 
-                      onClick={() => setDeletingId(selectedProject.id)} 
-                      className="p-2 text-stone-300 hover:text-red-600 transition-colors" 
-                      title="刪除大專案"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </>
-                )}
-              </div>
-
-              <div className="pl-2 pr-10">
+              {isAdmin && (
+                <div className="absolute top-6 right-6 flex items-center gap-2">
+                  {deletingId === selectedProject.id ? (
+                    <div className="flex items-center bg-red-50 text-red-800 px-3 py-1.5 rounded-sm border border-red-200 z-10 animate-in fade-in">
+                      <span className="text-xs font-medium mr-3">確認刪除專案</span>
+                      <button onClick={() => deleteProject(selectedProject.id)} className="p-1 hover:bg-red-100 text-red-700 transition-colors mr-1"><CheckCircle2 className="w-4 h-4" /></button>
+                      <button onClick={() => setDeletingId(null)} className="p-1 hover:bg-red-100 text-red-700 transition-colors"><X className="w-4 h-4" /></button>
+                    </div>
+                  ) : (
+                    <>
+                      <button onClick={() => { setEditProjectData({ name: selectedProject.name, description: selectedProject.description }); setIsEditingProject(true); }} className="p-2 text-stone-300 hover:text-orange-600 transition-colors">
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                      <button onClick={() => setDeletingId(selectedProject.id)} className="p-2 text-stone-300 hover:text-red-600 transition-colors">
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+              <div className={`pl-2 ${isAdmin ? 'pr-16' : ''}`}>
                 <div className="text-[10px] font-sans font-semibold text-orange-600 tracking-[0.2em] mb-3 uppercase flex items-center">
                   <Layout className="w-3.5 h-3.5 mr-1.5" /> Project Detail
                 </div>
@@ -895,72 +808,49 @@
             </div>
 
             <div className="flex items-center gap-6 overflow-x-auto pb-1 scrollbar-hide border-b border-stone-200">
-              <button 
-                onClick={() => setActiveItemId('main')}
-                className={`flex items-center gap-2 pb-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors border-b-2 ${
-                  isMainActive ? `border-orange-600 text-stone-900` : 'border-transparent text-stone-400 hover:text-stone-600'
-                }`}
-              >
+              <button onClick={() => setActiveItemId('main')} className={`flex items-center gap-2 pb-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors border-b-2 ${isMainActive ? `border-orange-600 text-stone-900` : 'border-transparent text-stone-400 hover:text-stone-600'}`}>
                 整體大專案
               </button>
-              
               {subItemsList.map(sub => {
                 const isSubActive = activeItemId === sub.id;
                 return (
-                  <button 
-                    key={sub.id}
-                    onClick={() => setActiveItemId(sub.id)}
-                    className={`flex items-center gap-2 pb-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors border-b-2 ${
-                      isSubActive ? 'border-stone-600 text-stone-800' : 'border-transparent text-stone-400 hover:text-stone-600'
-                    }`}
-                  >
+                  <button key={sub.id} onClick={() => setActiveItemId(sub.id)} className={`flex items-center gap-2 pb-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors border-b-2 ${isSubActive ? 'border-stone-600 text-stone-800' : 'border-transparent text-stone-400 hover:text-stone-600'}`}>
                     {sub.name}
                   </button>
-                )
+                );
               })}
-              
-              <button 
-                onClick={() => setIsAddingSubItem(true)}
-                className="flex items-center gap-1.5 pb-3 text-sm font-medium tracking-wide text-stone-400 hover:text-orange-600 transition-colors whitespace-nowrap ml-auto"
-              >
-                <Plus className="w-3.5 h-3.5" /> 增加子項目
-              </button>
+              {isAdmin && (
+                <button onClick={() => setIsAddingSubItem(true)} className="flex items-center gap-1.5 pb-3 text-sm font-medium tracking-wide text-stone-400 hover:text-orange-600 transition-colors whitespace-nowrap ml-auto">
+                  <Plus className="w-3.5 h-3.5" /> 增加子項目
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-              
               <div className="lg:col-span-7 space-y-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
-                    <h3 className="text-xl font-serif text-stone-900 tracking-wide">
-                      評估對象：<span className={themeClass.textTheme}>{activeItem ? activeItem.name || '整體大專案' : ''}</span>
-                    </h3>
-                    
-                    {!isMainActive && (
-                      deletingSubItemId === activeItemId ? (
-                        <div className="ml-4 flex items-center bg-red-50 text-red-800 px-2 py-1 rounded-sm border border-red-200 z-10 animate-in fade-in">
-                          <span className="text-xs font-medium mr-2">刪除子項目？</span>
-                          <button onClick={() => deleteSubItem(activeItemId)} className="p-0.5 hover:bg-red-100 text-red-700 transition-colors mr-1"><CheckCircle2 className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => setDeletingSubItemId(null)} className="p-0.5 hover:bg-red-100 text-red-700 transition-colors"><X className="w-3.5 h-3.5" /></button>
-                        </div>
-                      ) : (
-                        <button 
-                          onClick={() => setDeletingSubItemId(activeItemId)} 
-                          className="ml-3 text-stone-300 hover:text-red-600 transition-colors" 
-                          title="刪除此子項目"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )
-                    )}
-                  </div>
+                <div className="flex items-center mb-4">
+                  <h3 className="text-xl font-serif text-stone-900 tracking-wide">
+                    評估對象：<span className={themeClass.textTheme}>{activeItem ? activeItem.name || '整體大專案' : ''}</span>
+                  </h3>
+                  {isAdmin && !isMainActive && (
+                    deletingSubItemId === activeItemId ? (
+                      <div className="ml-4 flex items-center bg-red-50 text-red-800 px-2 py-1 rounded-sm border border-red-200 z-10 animate-in fade-in">
+                        <span className="text-xs font-medium mr-2">刪除子項目？</span>
+                        <button onClick={() => deleteSubItem(activeItemId)} className="p-0.5 hover:bg-red-100 text-red-700 transition-colors mr-1"><CheckCircle2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setDeletingSubItemId(null)} className="p-0.5 hover:bg-red-100 text-red-700 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setDeletingSubItemId(activeItemId)} className="ml-3 text-stone-300 hover:text-red-600 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )
+                  )}
                 </div>
 
                 {DIMENSIONS.map((dim, index) => {
                   const currentScore = draftScores[dim.key] || 0;
                   const isExpanded = expandedRubrics[dim.key] ? true : false;
                   const levelObj = dim.levels[currentScore] || { title: 'Pending', desc: '' };
-
                   return (
                     <div key={dim.key} className={`bg-white p-5 md:p-6 rounded-sm border transition-all duration-300 ${currentScore > 0 ? themeClass.borderTheme : 'border-stone-200 shadow-sm'}`}>
                       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -973,34 +863,27 @@
                             {isExpanded ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>}
                           </button>
                         </div>
-
                         <div className="flex items-center gap-4">
                           <div className="flex gap-1.5">
                             {[1, 2, 3, 4, 5].map(val => {
                               const isSelected = currentScore === val;
                               return (
                                 <button key={val} onClick={() => handleDraftScoreChange(dim.key, val)}
-                                  className={`w-9 h-9 flex items-center justify-center rounded-sm text-sm font-medium transition-all border
-                                    ${isSelected 
-                                      ? `${themeClass.bgTheme} text-white border-transparent` 
-                                      : `bg-stone-50 text-stone-500 border-stone-200 hover:border-orange-300 hover:text-stone-700 hover:bg-white`
-                                    }`}>
+                                  className={`w-9 h-9 flex items-center justify-center rounded-sm text-sm font-medium transition-all border ${isSelected ? `${themeClass.bgTheme} text-white border-transparent` : `bg-stone-50 text-stone-500 border-stone-200 hover:border-orange-300 hover:text-stone-700 hover:bg-white`}`}>
                                   {val}
                                 </button>
                               );
                             })}
                           </div>
-                          <button onClick={() => toggleRubric(dim.key)} className={`hidden sm:flex text-stone-400 hover:text-orange-600 transition-colors p-1`}>
+                          <button onClick={() => toggleRubric(dim.key)} className="hidden sm:flex text-stone-400 hover:text-orange-600 transition-colors p-1">
                             <Info className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
-
                       <div className={`mt-4 text-sm font-medium py-2 px-3 inline-flex items-center gap-2 ${currentScore > 0 ? themeClass.textTheme : 'text-stone-400'}`}>
                         {currentScore > 0 && <span className="opacity-60 text-xs">Level {currentScore}.</span>}
                         {levelObj.title}
                       </div>
-
                       {isExpanded && (
                         <div className="mt-5 pt-5 border-t border-stone-100 text-sm animate-in fade-in slide-in-from-top-2">
                           <div className="p-4 bg-stone-50 border border-stone-100 rounded-sm mb-5 text-stone-600 leading-relaxed">
@@ -1037,45 +920,29 @@
                         : `尚有 ${5 - DIMENSIONS.filter(d => draftScores[d.key] > 0).length} 項維度未完成評量`}
                     </p>
                   </div>
-                  
                   <div className="flex items-center gap-3">
                     {existingEval && (
-                      <button
-                        onClick={deleteScores}
-                        className="px-5 py-2.5 rounded-sm text-sm font-medium tracking-widest transition-all whitespace-nowrap uppercase bg-white border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300"
-                        title="撤銷並刪除您的評分"
-                      >
+                      <button onClick={deleteScores} className="px-5 py-2.5 rounded-sm text-sm font-medium tracking-widest transition-all whitespace-nowrap uppercase bg-white border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300">
                         Reset
                       </button>
                     )}
-                    <button
-                      onClick={submitScores}
-                      disabled={!isDraftComplete || !hasUnsavedChanges}
-                      className={`px-8 py-3 rounded-sm text-sm font-medium tracking-widest transition-all whitespace-nowrap uppercase ${
-                        isDraftComplete && hasUnsavedChanges
-                          ? `bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/20`
-                          : 'bg-stone-200 text-stone-400 cursor-not-allowed'
-                      }`}
-                    >
+                    <button onClick={submitScores} disabled={!isDraftComplete || !hasUnsavedChanges}
+                      className={`px-8 py-3 rounded-sm text-sm font-medium tracking-widest transition-all whitespace-nowrap uppercase ${isDraftComplete && hasUnsavedChanges ? `bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/20` : 'bg-stone-200 text-stone-400 cursor-not-allowed'}`}>
                       {!hasUnsavedChanges && isDraftComplete ? 'Synchronized' : (existingEval ? 'Update' : 'Submit')}
                     </button>
                   </div>
                 </div>
-
               </div>
 
               <div className="lg:col-span-5 lg:sticky lg:top-20 h-max space-y-6">
                 <div className="bg-white p-6 rounded-sm border border-stone-200 shadow-sm">
                   <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-serif text-stone-900 text-lg tracking-wide">
-                      Capability Radar
-                    </h3>
+                    <h3 className="font-serif text-stone-900 text-lg tracking-wide">Capability Radar</h3>
                     <button onClick={() => setShowAllMembers(!showAllMembers)} className="text-xs text-stone-400 hover:text-orange-600 font-medium tracking-wide flex items-center gap-1.5 transition-colors uppercase">
                       {showAllMembers ? <EyeOff className="w-3.5 h-3.5"/> : <Eye className="w-3.5 h-3.5"/>}
                       {showAllMembers ? 'Hide All' : 'Show All'}
                     </button>
                   </div>
-
                   {(activeItem.evaluations || []).length === 0 ? (
                     <div className="w-full h-[320px] flex flex-col items-center justify-center bg-stone-50 border border-stone-200 rounded-sm">
                       <span className="text-stone-400 text-xs tracking-widest uppercase font-medium">No Data Available</span>
@@ -1087,17 +954,15 @@
                           <PolarGrid stroke="#e7e5e4" /> 
                           <PolarAngleAxis dataKey="subject" tick={{ fill: '#57534e', fontSize: 11, fontWeight: 500 }} />
                           <PolarRadiusAxis angle={30} domain={[0, 5]} tickCount={6} tick={{ fontSize: 9, fill: '#a8a29e' }} axisLine={false} />
-                          
                           {showAllMembers ? (
                             MEMBERS.map(m => {
                               const hasEval = (activeItem.evaluations || []).some(e => e.memberId === m.id);
                               if(!hasEval) return null;
-                              return <Radar key={m.id} name={m.name} dataKey={m.id} stroke={m.color} fill="none" strokeWidth={1} strokeDasharray="3 3" />
+                              return <Radar key={m.id} name={m.name} dataKey={m.id} stroke={m.color} fill="none" strokeWidth={1} strokeDasharray="3 3" />;
                             })
                           ) : (
                             <Radar name={currentMemberInfo.name} dataKey={currentMemberId} stroke={isMainActive ? '#ea580c' : '#57534e'} fill={isMainActive ? '#ea580c' : '#57534e'} fillOpacity={0.1} strokeWidth={2} />
                           )}
-                          
                           <Radar name="團隊均值" dataKey="average" stroke="#a8a29e" fill="#f5f5f4" fillOpacity={showAllMembers ? 0 : 0.6} strokeWidth={1} />
                           <Tooltip wrapperClassName="rounded-sm border border-stone-200 shadow-sm" contentStyle={{ backgroundColor: '#ffffff', borderRadius: '2px', border: 'none', color: '#1c1917', fontSize: '12px' }} itemStyle={{color: '#57534e'}} />
                           <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px', color: '#57534e' }} />
@@ -1136,11 +1001,9 @@
                     })}
                   </div>
                 </div>
-
               </div>
             </div>
 
-            {/* 架構一致性分析 */}
             {subItemsList.length > 0 && (
               <div className="mt-16 pt-12 border-t border-stone-200">
                 <div className="mb-8">
@@ -1153,7 +1016,6 @@
                     比對「大專案」與「各子項目」的團隊均值分佈。若大專案均值遠高於子項目，可能意味著整體概念未能有效落實於局部實踐中；反之，則可能有隱藏的局部價值尚未被提昇至專案層次。
                   </p>
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="bg-white p-6 rounded-sm border border-stone-200 shadow-sm">
                     <h4 className="font-serif text-stone-800 text-base mb-6 tracking-wide text-center">Macro vs Micro Radar</h4>
@@ -1163,17 +1025,14 @@
                           <PolarGrid stroke="#e7e5e4" />
                           <PolarAngleAxis dataKey="subject" tick={{ fill: '#57534e', fontSize: 12, fontWeight: 500 }} />
                           <PolarRadiusAxis angle={30} domain={[0, 5]} tickCount={6} tick={{ fontSize: 9, fill: '#a8a29e' }} axisLine={false} />
-                          
                           <Radar name="大專案 (團隊均值)" dataKey="mainProject" stroke="#ea580c" fill="#ea580c" fillOpacity={0.15} strokeWidth={2} />
                           <Radar name="子項目 (總體均值)" dataKey="subItemsAverage" stroke="#57534e" fill="none" strokeWidth={2} strokeDasharray="5 5" />
-                          
                           <Tooltip wrapperClassName="rounded-sm border border-stone-200 shadow-sm" contentStyle={{ backgroundColor: '#ffffff', borderRadius: '2px', border: 'none', color: '#1c1917', fontSize: '12px' }} />
                           <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '15px', color: '#57534e' }} />
                         </RadarChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
-
                   <div className="bg-white rounded-sm border border-stone-200 shadow-sm overflow-hidden flex flex-col">
                     <div className="p-4 border-b border-stone-100 bg-stone-50/50">
                       <h4 className="font-serif text-stone-800 text-base tracking-wide">Dimension Variance</h4>
@@ -1214,27 +1073,23 @@
               </div>
             )}
 
-            {/* 底部：並列式數據總表 */}
             <div className="bg-white rounded-sm border border-stone-200 shadow-sm overflow-hidden mt-12">
               <div className="p-5 border-b border-stone-200 flex justify-between items-center gap-4 bg-stone-50/50">
                 <h3 className="text-lg md:text-xl font-serif text-stone-900 tracking-wide flex items-center">
                   層級分數總表
                   <span className="hidden sm:inline-block ml-4 px-2 py-0.5 bg-white border border-stone-200 text-stone-500 text-[10px] uppercase tracking-widest font-sans rounded-sm">Data Report</span>
                 </h3>
-                <button onClick={exportToCSV} className="flex items-center gap-1.5 text-stone-400 hover:text-orange-600 transition-colors text-[11px] uppercase tracking-widest font-medium ml-auto sm:ml-0" title="匯出 CSV">
+                <button onClick={exportToCSV} className="flex items-center gap-1.5 text-stone-400 hover:text-orange-600 transition-colors text-[11px] uppercase tracking-widest font-medium ml-auto sm:ml-0">
                   <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Export</span>
                 </button>
               </div>
-              
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left border-collapse">
                   <thead className="bg-white text-stone-400 text-[10px] tracking-[0.15em] uppercase border-b border-stone-200">
                     <tr>
                       <th className="p-4 font-medium whitespace-nowrap">Member</th>
                       <th className="p-4 font-medium whitespace-nowrap border-l border-stone-100 text-orange-600">Main Project (25)</th>
-                      {subItemsList.map(sub => (
-                        <th key={sub.id} className="p-4 font-medium whitespace-nowrap border-l border-stone-100">{sub.name} (25)</th>
-                      ))}
+                      {subItemsList.map(sub => <th key={sub.id} className="p-4 font-medium whitespace-nowrap border-l border-stone-100">{sub.name} (25)</th>)}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100 text-sm">
@@ -1242,7 +1097,6 @@
                       const mainScore = getMemberTotal(selectedProject.evaluations, m.id);
                       const subScores = subItemsList.map(sub => getMemberTotal(sub.evaluations, m.id));
                       const isCurrent = m.id === currentMemberId;
-
                       return (
                         <tr key={m.id} className={`transition-colors ${isCurrent ? 'bg-orange-50/30' : 'hover:bg-stone-50/50'}`}>
                           <td className="p-4 font-medium flex items-center gap-3 whitespace-nowrap text-stone-700">
@@ -1254,30 +1108,21 @@
                             <td key={i} className={`p-4 font-mono text-base border-l border-stone-100 ${score > 0 ? 'text-stone-600' : 'text-stone-300'}`}>{score > 0 ? score : '-'}</td>
                           ))}
                         </tr>
-                      )
+                      );
                     })}
                   </tbody>
                 </table>
               </div>
             </div>
-
           </main>
 
-          {/* 新增子項目 Modal */}
-          {isAddingSubItem && (
+          {isAdmin && isAddingSubItem && (
             <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-sm p-8 max-w-md w-full shadow-xl border border-stone-200 animate-in zoom-in-95 duration-200">
                 <h3 className="text-xl font-serif text-stone-900 mb-2 tracking-wide">新增子項目</h3>
                 <p className="text-stone-500 text-sm mb-6">請為此專案輸入需要獨立評估的子項目名稱（如：主視覺、網站設計）。</p>
                 <form onSubmit={confirmAddSubItem}>
-                  <input
-                    autoFocus
-                    type="text"
-                    className="w-full p-3 rounded-sm bg-stone-50 border border-stone-200 focus:outline-none focus:bg-white focus:border-orange-500 transition-colors mb-6 text-stone-800 placeholder-stone-400"
-                    placeholder="輸入名稱..."
-                    value={newSubItemName}
-                    onChange={(e) => setNewSubItemName(e.target.value)}
-                  />
+                  <input autoFocus type="text" className="w-full p-3 rounded-sm bg-stone-50 border border-stone-200 focus:outline-none focus:bg-white focus:border-orange-500 transition-colors mb-6 text-stone-800 placeholder-stone-400" placeholder="輸入名稱..." value={newSubItemName} onChange={(e) => setNewSubItemName(e.target.value)} />
                   <div className="flex justify-end gap-3">
                     <button type="button" onClick={() => {setIsAddingSubItem(false); setNewSubItemName('');}} className="px-5 py-2.5 text-sm font-medium tracking-wide text-stone-500 hover:text-stone-800 transition-colors">取消</button>
                     <button type="submit" disabled={!newSubItemName.trim()} className="px-6 py-2.5 rounded-sm text-sm font-medium tracking-wide bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm shadow-orange-600/20">確認新增</button>
@@ -1287,28 +1132,14 @@
             </div>
           )}
 
-          {/* 編輯大專案 Modal */}
-          {isEditingProject && (
+          {isAdmin && isEditingProject && (
             <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-sm p-8 max-w-md w-full shadow-xl border border-stone-200 animate-in zoom-in-95 duration-200">
                 <h3 className="text-xl font-serif text-stone-900 mb-2 tracking-wide">編輯專案</h3>
                 <p className="text-stone-500 text-sm mb-6">修改大專案的名稱與簡述。</p>
                 <form onSubmit={confirmEditProject}>
-                  <input
-                    autoFocus
-                    type="text"
-                    className="w-full p-3 rounded-sm bg-stone-50 border border-stone-200 focus:outline-none focus:bg-white focus:border-orange-500 transition-colors mb-4 text-stone-800 placeholder-stone-400"
-                    placeholder="專案名稱"
-                    value={editProjectData.name}
-                    onChange={(e) => setEditProjectData({ ...editProjectData, name: e.target.value })}
-                  />
-                  <textarea 
-                    className="w-full p-3 rounded-sm bg-stone-50 border border-stone-200 focus:outline-none focus:bg-white focus:border-orange-500 transition-colors mb-6 text-stone-800 placeholder-stone-400 resize-none"
-                    placeholder="專案簡述..."
-                    rows="3"
-                    value={editProjectData.description}
-                    onChange={(e) => setEditProjectData({ ...editProjectData, description: e.target.value })}
-                  />
+                  <input autoFocus type="text" className="w-full p-3 rounded-sm bg-stone-50 border border-stone-200 focus:outline-none focus:bg-white focus:border-orange-500 transition-colors mb-4 text-stone-800 placeholder-stone-400" placeholder="專案名稱" value={editProjectData.name} onChange={(e) => setEditProjectData({ ...editProjectData, name: e.target.value })} />
+                  <textarea className="w-full p-3 rounded-sm bg-stone-50 border border-stone-200 focus:outline-none focus:bg-white focus:border-orange-500 transition-colors mb-6 text-stone-800 placeholder-stone-400 resize-none" placeholder="專案簡述..." rows="3" value={editProjectData.description} onChange={(e) => setEditProjectData({ ...editProjectData, description: e.target.value })} />
                   <div className="flex justify-end gap-3">
                     <button type="button" onClick={() => setIsEditingProject(false)} className="px-5 py-2.5 text-sm font-medium tracking-wide text-stone-500 hover:text-stone-800 transition-colors">取消</button>
                     <button type="submit" disabled={!editProjectData.name.trim()} className="px-6 py-2.5 rounded-sm text-sm font-medium tracking-wide bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm shadow-orange-600/20">儲存變更</button>
@@ -1317,12 +1148,10 @@
               </div>
             </div>
           )}
-
         </div>
       );
     }
     
-    // --- 應用程式啟動 ---
     const root = createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
