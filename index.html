@@ -90,59 +90,59 @@
     };
 
     const DIMENSIONS = [
-      { 
+      {
         key: 'clarity', label: '需求釐清精準度', shortLabel: '需求釐清',
-        core: '找出真正的解法，不當盲目加番茄醬的「手」。找出深層心理需求，或許改成「咖哩烏龍麵」才是最佳解。',
+        core: '整個專案是否抓對了方向？不只是聽懂客戶的話，而是找出他們真正想達成的目標與背後的決策邏輯。',
         levels: {
-          1: { title: '純加番茄醬', desc: '客戶說什麼就畫什麼，連自己都覺得不合理。' },
-          2: { title: '番茄醬擺得很漂亮', desc: '照著表層需求做，但沒有重新思考真正的問題。' },
-          3: { title: '開始懷疑味道', desc: '察覺要求有矛盾，但還沒提出完整的最佳解法。' },
-          4: { title: '改成咖哩烏龍麵', desc: '抓出客戶真正的目的，提出對症下藥的設計解法。' },
-          5: { title: '煮出他沒說出口的味道', desc: '不僅提出正確解法，還完全讀懂決策者的喜好。' }
+          1: { title: '照單全收', desc: '客戶說什麼就做什麼，團隊沒有提出任何疑問或釐清。' },
+          2: { title: '表層理解', desc: '聽懂了字面需求並且執行，但沒有追問背後的「為什麼」。' },
+          3: { title: '開始追問', desc: '察覺需求中有矛盾或模糊地帶，但還沒整理出完整的專案方向。' },
+          4: { title: '精準定義問題', desc: '跳脫表面需求，找出客戶真正的商業目的與決策考量，專案方向對症下藥。' },
+          5: { title: '比客戶更懂客戶', desc: '不僅定義出正確方向，還預判到決策者未說出口的期待與顧慮，讓對方驚艷。' }
         }
       },
-      { 
+      {
         key: 'architecture', label: '概念結構完整度', shortLabel: '概念結構',
-        core: '一句話測試！你的設計背後有沒有骨幹？必須要有一個核心敘事軸。',
+        core: '一句話測試！整個專案背後有沒有一條核心敘事軸？從概念到空間到視覺，是否能用同一套邏輯貫穿？',
         levels: {
-          1: { title: '純靈感拼貼', desc: '只是好看的畫面集合，沒有主軸。' },
-          2: { title: '有初步分類', desc: '畫面有針對企劃內容做歸納，但邏輯關係薄弱。' },
-          3: { title: '具備基礎概念', desc: '有個大方向，但還沒辦法用「一句話」清楚表達。' },
-          4: { title: '邏輯推演順暢', desc: '能用一句話說出主軸，並解釋每個元素存在的原因。' },
-          5: { title: '擁有超強核心支點', desc: '80%以上成員可清楚複述邏輯，所有元素對應主軸。' }
+          1: { title: '各做各的', desc: '空間、視覺、互動各自發揮，沒有共同的核心概念串聯。' },
+          2: { title: '有方向但鬆散', desc: '團隊有共識的大方向，但各環節之間的邏輯串聯薄弱。' },
+          3: { title: '看得出主軸', desc: '有一個核心概念，但還沒辦法用一句話讓所有人清楚理解。' },
+          4: { title: '邏輯貫穿全案', desc: '能用一句話說出專案主軸，從概念到空間到視覺都能回扣這條線。' },
+          5: { title: '自帶傳播力的敘事', desc: '核心概念強到 80% 以上團隊成員能清楚複述，且每個產出都是這條線的延伸。' }
         }
       },
-      { 
+      {
         key: 'differentiation', label: '專屬差異化程度', shortLabel: '專屬差異',
-        core: '換 LOGO 測試！這個設計具備不可替代性嗎？',
+        core: '換品牌測試！如果把 LOGO 拿掉，這整個專案的策略、概念、體驗還認得出是為這個客戶做的嗎？',
         levels: {
-          1: { title: '模板素材直用', desc: '什麼主題都能用，換了 LOGO 和主題也毫無違和感。' },
-          2: { title: '素材優化拼接', desc: '拿現有常見的展覽套路、設計素材稍微修改拼湊。' },
-          3: { title: '部分專屬元素', desc: '畫面中有客製化細節，但相似主題還是能套用。' },
-          4: { title: '具有專屬結構', desc: '整體空間或視覺能看出是為該客戶量身打造的。' },
-          5: { title: '完全專屬配置', desc: '只有這品牌這場域能用，具備極高的專屬差異化。' }
+          1: { title: '套路作品', desc: '換個品牌名稱就能直接搬去用，專案毫無專屬性可言。' },
+          2: { title: '微調套用', desc: '在常見的展覽或設計套路上做了表面調整，但骨架是通用的。' },
+          3: { title: '局部客製', desc: '部分環節有為客戶量身設計，但整體策略和體驗架構仍偏通用。' },
+          4: { title: '整案量身打造', desc: '從策略到執行都能看出為該品牌和場域專門設計，具有高度辨識度。' },
+          5: { title: '不可複製的唯一', desc: '只有這個品牌、這個場域、這個時機才能成立的專案，具有完全的不可替代性。' }
         }
       },
-      { 
-        key: 'amplification', label: '視覺放大能力', shortLabel: '視覺放大',
-        core: '視覺不只是裝飾，而是「放大器」，讓概念變清楚、變有力、被記住。',
+      {
+        key: 'amplification', label: '表現力與記憶點', shortLabel: '表現力',
+        core: '整個專案的呈現是否成功「放大」了核心概念？觀者在離開後，腦中是否留下了清晰的印象？',
         levels: {
-          1: { title: '花拳繡腿', desc: '過度裝飾，導致視覺效果模糊了概念，喧賓奪主。' },
-          2: { title: '視覺美但偏離主軸', desc: '畫面精緻漂亮，但跟背後的概念關聯薄弱。' },
-          3: { title: '視覺符合概念', desc: '視覺與概念有一致性，但未形成強烈記憶點。' },
-          4: { title: '視覺有效強化概念', desc: '視覺成功讓概念變得更好懂、增加說服力。' },
-          5: { title: '視覺成為絕對記憶點', desc: '存在一個清晰可辨識的核心視覺符號，成為識別點。' }
+          1: { title: '各環節打架', desc: '空間、視覺、互動各自搶戲，觀者離開後說不出這個專案在講什麼。' },
+          2: { title: '好看但沒記住', desc: '整體呈現有品質，但缺乏一個讓人帶走的核心記憶點。' },
+          3: { title: '印象一致', desc: '觀者能感受到專案的調性是統一的，但還缺少讓人「哇」的一擊。' },
+          4: { title: '概念被看見', desc: '核心概念透過各環節的呈現被有效放大，觀者能清楚感受到想傳達的訊息。' },
+          5: { title: '帶走一個畫面', desc: '整個專案濃縮成一個強烈的記憶——離開後腦中有一個揮之不去的畫面或感受。' }
         }
       },
-      { 
+      {
         key: 'feasibility', label: '可執行與風險控制', shortLabel: '風險控制',
-        core: '高品質設計不只在於概念強，而是在預算、時間壓力下，仍然能維持品質。',
+        core: '整個專案在預算、時程、人力、技術限制下，是否仍然能交出高品質的成果？',
         levels: {
-          1: { title: '只存在概念中', desc: '未考慮預算、工期，概念無法在現實條件下實現。' },
-          2: { title: '高風險賭注', desc: '理論可行，缺乏成本估算，可能導致成本超標。' },
-          3: { title: '基本可落地', desc: '實務上做得出來，但可能還沒仔細精算過最佳解。' },
-          4: { title: '優質的方案', desc: '設計當下已將預算限制與時間壓力納入規劃。' },
-          5: { title: '限制中創造優勢', desc: '主動調整產出策略，用聰明方式使限制成為優勢。' }
+          1: { title: '理想與現實脫鉤', desc: '團隊提了精彩的概念，但完全沒考慮預算、時程與技術現實。' },
+          2: { title: '低估風險', desc: '有意識到限制存在，但缺乏具體的成本估算與風險預案，容易爆預算或延期。' },
+          3: { title: '基本可交付', desc: '專案能在限制內完成，但某些環節需要現場妥協，品質可能打折。' },
+          4: { title: '規劃即管理', desc: '設計階段就已將預算、時程、技術風險納入規劃，團隊有信心如期如質交付。' },
+          5: { title: '限制反成優勢', desc: '主動將預算或場地限制轉化為創意策略的一部分，讓限制本身成為專案亮點。' }
         }
       }
     ];
@@ -159,16 +159,341 @@
       { id: 'm9', name: 'Ray', color: '#a16207' }   
     ];
 
+    // ==========================================
+    // 子項目類型定義與預設子項目
+    // ==========================================
+    const SUB_ITEM_TYPES = ['主題概念', '空間設計', '互動體驗', '介面視覺', '平面設計'];
+
+    const createDefaultSubItems = () => SUB_ITEM_TYPES.map((name, i) => ({
+      id: 's' + Date.now() + '_' + i,
+      name,
+      type: name,
+      evaluations: []
+    }));
+
+    // 檢查專案是否缺少預設子項目，若缺少則補上
+    const ensureDefaultSubItems = (existingSubItems) => {
+      const existing = existingSubItems || [];
+      const existingNames = existing.map(s => s.name);
+      const missing = SUB_ITEM_TYPES.filter(name => !existingNames.includes(name));
+      if (missing.length === 0) return existing;
+      const newItems = missing.map((name, i) => ({
+        id: 's' + Date.now() + '_mig_' + i,
+        name,
+        type: name,
+        evaluations: []
+      }));
+      // 預設子項目排在前面，原有的自訂子項目排在後面
+      const defaultOrdered = SUB_ITEM_TYPES
+        .map(name => existing.find(s => s.name === name) || newItems.find(s => s.name === name))
+        .filter(Boolean);
+      const custom = existing.filter(s => !SUB_ITEM_TYPES.includes(s.name));
+      return [...defaultOrdered, ...custom];
+    };
+
+    // ==========================================
+    // 各子項目類型的客製化評分描述
+    // ==========================================
+    const SUB_ITEM_DIMENSIONS = {
+      '主題概念': [
+        {
+          key: 'clarity', label: '需求釐清精準度', shortLabel: '需求釐清',
+          core: '找出真正的主題核心，不只是回應表面的題目方向，而是挖掘品牌或活動背後的深層訊息。',
+          levels: {
+            1: { title: '照題目寫', desc: '直接把客戶給的主題文字當結論，沒有進一步思考。' },
+            2: { title: '改寫得漂亮', desc: '對主題做了文字包裝，但本質上仍是客戶原話的延伸。' },
+            3: { title: '嘗試挖深', desc: '察覺主題有更深的意涵，但還沒完整歸納出核心論述。' },
+            4: { title: '精準定義主軸', desc: '從客戶需求中提煉出清楚的概念主軸，並能解釋為何這樣定義。' },
+            5: { title: '超越期待的洞察', desc: '不僅精準定義主題，還挖掘出連客戶自己都沒意識到的品牌價值。' }
+          }
+        },
+        {
+          key: 'architecture', label: '概念結構完整度', shortLabel: '概念結構',
+          core: '主題概念是否有完整的敘事骨幹？能不能用一句話清楚傳達核心精神？',
+          levels: {
+            1: { title: '關鍵字堆疊', desc: '只是把幾個好聽的關鍵字放在一起，缺乏邏輯串聯。' },
+            2: { title: '有基本方向', desc: '能看出想表達什麼，但概念間的因果關係不明確。' },
+            3: { title: '具備敘事線', desc: '有完整的故事線，但層次感不夠強，論述深度有限。' },
+            4: { title: '邏輯嚴謹', desc: '概念結構清晰，一句話能說出主軸，每個環節都有存在理由。' },
+            5: { title: '概念可自行傳播', desc: '結構強到團隊每個人都能複述，且概念本身具有記憶傳播力。' }
+          }
+        },
+        {
+          key: 'differentiation', label: '專屬差異化程度', shortLabel: '專屬差異',
+          core: '這個主題概念是否獨一無二？換到其他品牌或活動上還能成立嗎？',
+          levels: {
+            1: { title: '通用概念', desc: '主題放到任何品牌、任何活動都適用，毫無專屬性。' },
+            2: { title: '略有關聯', desc: '概念與品牌有點關係，但其他同業也能直接套用。' },
+            3: { title: '部分專屬', desc: '概念中有針對該品牌的元素，但核心論述仍偏通用。' },
+            4: { title: '高度專屬', desc: '概念緊扣品牌 DNA，其他品牌無法直接挪用。' },
+            5: { title: '唯一性概念', desc: '只有這個品牌、這個時機才成立的概念，具有不可複製的獨特性。' }
+          }
+        },
+        {
+          key: 'amplification', label: '視覺放大能力', shortLabel: '視覺放大',
+          core: '主題概念是否能被「看見」？是否有足夠的視覺轉化潛力，讓概念不只停留在文字？',
+          levels: {
+            1: { title: '概念無法視覺化', desc: '主題太抽象或太空泛，找不到對應的視覺語言。' },
+            2: { title: '勉強圖像化', desc: '能找到素材來表現，但視覺與概念之間的連結牽強。' },
+            3: { title: '視覺可對應', desc: '概念可以被合理地視覺呈現，但缺乏強烈的記憶點。' },
+            4: { title: '視覺強化概念', desc: '概念透過視覺變得更好懂、更有感染力。' },
+            5: { title: '概念即畫面', desc: '概念本身就帶有強烈的視覺想像，一說出來就看得見。' }
+          }
+        },
+        {
+          key: 'feasibility', label: '可執行與風險控制', shortLabel: '風險控制',
+          core: '這個主題概念在實際執行面上站得住腳嗎？能否在預算與時間限制下落地？',
+          levels: {
+            1: { title: '天馬行空', desc: '概念很美好但完全不考慮現實條件，無法落地。' },
+            2: { title: '理想化偏高', desc: '概念可行性存疑，缺乏對成本和時程的評估。' },
+            3: { title: '基本可行', desc: '概念能執行，但可能需要大幅調整才能在限制內實現。' },
+            4: { title: '務實且精彩', desc: '概念設計時就已考量執行限制，在現實條件下依然出色。' },
+            5: { title: '限制變優勢', desc: '善用限制條件反轉為創意優勢，讓概念因限制而更獨特。' }
+          }
+        }
+      ],
+      '空間設計': [
+        {
+          key: 'clarity', label: '需求釐清精準度', shortLabel: '需求釐清',
+          core: '空間設計是否回應了真正的體驗需求？不只是「好看的空間」，而是「對的空間」。',
+          levels: {
+            1: { title: '照圖施工', desc: '完全按客戶提供的平面圖或參考照做，未重新思考動線與體驗。' },
+            2: { title: '微調美化', desc: '在原始需求上做視覺美化，但空間邏輯未被重新梳理。' },
+            3: { title: '察覺痛點', desc: '發現原始需求中的動線或體驗問題，但尚未提出完整替代方案。' },
+            4: { title: '重新定義空間', desc: '理解真正的體驗目的後，提出更符合使用情境的空間規劃。' },
+            5: { title: '超越空間本身', desc: '空間設計完美回應體驗需求，甚至創造出客戶未曾想像的場域價值。' }
+          }
+        },
+        {
+          key: 'architecture', label: '概念結構完整度', shortLabel: '概念結構',
+          core: '空間的動線、分區、層次是否有清楚的邏輯？從入口到出口是否有完整的體驗敘事？',
+          levels: {
+            1: { title: '空間拼湊', desc: '各區域像獨立的裝置藝術，彼此無關聯。' },
+            2: { title: '基本分區', desc: '有做分區規劃，但區域之間的轉換缺乏節奏與邏輯。' },
+            3: { title: '動線合理', desc: '動線流暢，分區有序，但體驗的高潮與節奏感不夠明確。' },
+            4: { title: '空間敘事完整', desc: '從入口到出口有清晰的體驗起承轉合，每個區域都有角色。' },
+            5: { title: '沉浸式劇場', desc: '空間本身就在說故事，觀者無需文字導覽也能感受到完整敘事。' }
+          }
+        },
+        {
+          key: 'differentiation', label: '專屬差異化程度', shortLabel: '專屬差異',
+          core: '這個空間設計是否為此場域量身打造？換到別的場地或品牌還能成立嗎？',
+          levels: {
+            1: { title: '標準展位', desc: '像套用展場模板，放到任何展覽都不違和。' },
+            2: { title: '風格有調整', desc: '有針對主題做風格微調，但空間結構仍是常見套路。' },
+            3: { title: '部分客製', desc: '有為品牌設計專屬元素，但整體空間語言仍偏通用。' },
+            4: { title: '場域專屬', desc: '空間設計充分利用場地特性，品牌識別融入空間語言中。' },
+            5: { title: '唯一場域體驗', desc: '只有在這個場地、這個品牌才能實現的空間體驗，不可複製。' }
+          }
+        },
+        {
+          key: 'amplification', label: '視覺放大能力', shortLabel: '視覺放大',
+          core: '空間中的視覺元素是否成功放大了概念？材質、燈光、色彩是否在為主題服務？',
+          levels: {
+            1: { title: '裝飾堆砌', desc: '空間裝飾過多，視覺混亂反而削弱了概念表達。' },
+            2: { title: '美但脫節', desc: '空間很美，但材質、燈光與概念之間缺乏對應關係。' },
+            3: { title: '氛圍一致', desc: '空間氛圍與概念方向一致，但缺乏令人驚艷的視覺焦點。' },
+            4: { title: '空間強化概念', desc: '材質、燈光、色彩的選擇精準地放大了概念表達。' },
+            5: { title: '走進概念裡', desc: '空間本身成為概念的具象化，讓人彷彿走進了主題的世界。' }
+          }
+        },
+        {
+          key: 'feasibility', label: '可執行與風險控制', shortLabel: '風險控制',
+          core: '空間設計在施工、預算、場地限制下能否順利實現？是否已考慮工程可行性？',
+          levels: {
+            1: { title: '紙上談兵', desc: '設計未考慮場地限制、結構安全或施工可行性。' },
+            2: { title: '風險偏高', desc: '理論上可行，但施工難度大、預算超標風險高。' },
+            3: { title: '基本可落地', desc: '技術上做得出來，但某些細節可能需要現場大幅調整。' },
+            4: { title: '精準落地', desc: '設計時已充分考慮施工條件與預算，方案務實且精彩。' },
+            5: { title: '工程即創意', desc: '將場地限制或工程條件轉化為設計亮點，限制反成優勢。' }
+          }
+        }
+      ],
+      '互動體驗': [
+        {
+          key: 'clarity', label: '需求釐清精準度', shortLabel: '需求釐清',
+          core: '互動設計是否解決了真正的體驗問題？不是為了互動而互動，而是為了讓觀者「有感」。',
+          levels: {
+            1: { title: '為互動而互動', desc: '加了觸控螢幕或感應裝置，但不清楚為什麼需要互動。' },
+            2: { title: '有互動形式', desc: '選了一種互動方式，但與想傳遞的訊息關聯薄弱。' },
+            3: { title: '回應部分需求', desc: '互動設計確實回應了某個體驗需求，但還有更核心的問題未被解決。' },
+            4: { title: '精準對症', desc: '清楚知道觀者需要什麼體驗，互動方式直接回應核心需求。' },
+            5: { title: '創造新體驗', desc: '不只回應需求，還透過互動開啟了觀者從未想像過的體驗維度。' }
+          }
+        },
+        {
+          key: 'architecture', label: '概念結構完整度', shortLabel: '概念結構',
+          core: '互動的流程是否有完整的體驗設計？從觸發、參與到回饋，是否環環相扣？',
+          levels: {
+            1: { title: '單點互動', desc: '只有一個觸發動作，沒有前後脈絡，體驗斷裂。' },
+            2: { title: '有步驟但鬆散', desc: '互動有幾個步驟，但步驟之間缺乏因果關係與節奏感。' },
+            3: { title: '流程完整', desc: '從開始到結束有合理流程，但體驗的情緒曲線不夠鮮明。' },
+            4: { title: '體驗起承轉合', desc: '互動流程有明確的引導、高潮與收尾，情緒節奏到位。' },
+            5: { title: '沉浸式旅程', desc: '互動體驗如同一場完整旅程，觀者全程投入且意猶未盡。' }
+          }
+        },
+        {
+          key: 'differentiation', label: '專屬差異化程度', shortLabel: '專屬差異',
+          core: '這個互動體驗是否具有獨特性？還是市面上常見的互動套路？',
+          levels: {
+            1: { title: '常見互動套件', desc: '拍照牆、觸控查詢等大量展覽都在用的制式互動。' },
+            2: { title: '微調版套路', desc: '用常見互動形式稍作變化，但本質上沒有新意。' },
+            3: { title: '有新想法', desc: '互動設計中有創新元素，但部分環節仍可在其他案例中看到。' },
+            4: { title: '獨特體驗', desc: '互動方式與品牌內容高度結合，具備明顯的辨識度。' },
+            5: { title: '前所未見', desc: '觀者從未體驗過的互動形式，成為口碑傳播的核心記憶點。' }
+          }
+        },
+        {
+          key: 'amplification', label: '視覺放大能力', shortLabel: '視覺放大',
+          core: '互動過程中的視覺回饋是否強化了概念？畫面、動態、音效是否讓體驗更有力？',
+          levels: {
+            1: { title: '視覺干擾體驗', desc: '互動中的畫面或特效過於花俏，反而讓觀者無法專注。' },
+            2: { title: '視覺平淡', desc: '互動回饋的視覺表現普通，沒有讓體驗加分。' },
+            3: { title: '視覺搭配得宜', desc: '互動畫面與概念方向一致，但缺乏令人驚嘆的瞬間。' },
+            4: { title: '視覺強化沉浸', desc: '動態視覺與互動行為完美配合，大幅提升體驗感受力。' },
+            5: { title: '視覺成為體驗本身', desc: '互動產生的視覺效果本身就是最大亮點，讓人想一再體驗。' }
+          }
+        },
+        {
+          key: 'feasibility', label: '可執行與風險控制', shortLabel: '風險控制',
+          core: '互動裝置在技術、穩定性、維護成本上是否可控？是否考慮過使用者操作的容錯？',
+          levels: {
+            1: { title: '技術空想', desc: '互動構想很酷但技術上難以實現，或穩定性完全無法保證。' },
+            2: { title: '高風險方案', desc: '技術可行但容錯率低，現場一出問題就會影響體驗。' },
+            3: { title: '基本穩定', desc: '互動裝置能正常運作，但缺乏完善的異常處理與維護計畫。' },
+            4: { title: '穩定且友善', desc: '技術方案成熟、容錯設計完善，一般觀者都能順利操作。' },
+            5: { title: '技術即魔法', desc: '技術穩定到觀者完全感受不到科技的存在，只感受到「魔法」。' }
+          }
+        }
+      ],
+      '介面視覺': [
+        {
+          key: 'clarity', label: '需求釐清精準度', shortLabel: '需求釐清',
+          core: '介面設計是否回應了使用者真正的操作需求？不只是好看，而是「好用且好懂」。',
+          levels: {
+            1: { title: '照稿設計', desc: '把 wireframe 美化一下就交了，未思考使用者實際操作情境。' },
+            2: { title: '表面優化', desc: '介面看起來更精緻了，但操作邏輯與使用者需求仍有落差。' },
+            3: { title: '開始考慮用戶', desc: '察覺到使用者可能遇到的困惑，但解法還不夠到位。' },
+            4: { title: '以用戶為中心', desc: '介面設計從使用者情境出發，每個操作流程都合理易懂。' },
+            5: { title: '零學習成本', desc: '使用者不需任何說明就能直覺操作，介面設計完美貼合心智模型。' }
+          }
+        },
+        {
+          key: 'architecture', label: '概念結構完整度', shortLabel: '概念結構',
+          core: '介面的資訊架構與視覺層級是否清晰？使用者能不能快速理解「這裡是什麼」？',
+          levels: {
+            1: { title: '資訊混亂', desc: '畫面資訊沒有層級區分，使用者不知道該先看哪裡。' },
+            2: { title: '有基本排列', desc: '內容有分區，但視覺權重分配不當，重點不突出。' },
+            3: { title: '層級合理', desc: '資訊架構與視覺層級基本正確，但頁面間的一致性不夠。' },
+            4: { title: '系統化設計', desc: '有完整的設計系統，元件規範一致，資訊層級清楚。' },
+            5: { title: '直覺導航', desc: '資訊架構精準到使用者能「預測」下一步在哪裡，毫無認知負擔。' }
+          }
+        },
+        {
+          key: 'differentiation', label: '專屬差異化程度', shortLabel: '專屬差異',
+          core: '這套介面視覺是否有品牌辨識度？還是看起來像某個 UI Kit 的預設樣式？',
+          levels: {
+            1: { title: 'UI Kit 直套', desc: '直接使用現成的 UI 元件庫，沒有任何品牌化調整。' },
+            2: { title: '換色換字', desc: '在預設樣式上改了品牌色和字型，但整體風格仍很制式。' },
+            3: { title: '局部品牌化', desc: '部分元件有品牌特色，但整體視覺語言還不夠統一。' },
+            4: { title: '品牌識別鮮明', desc: '介面視覺風格與品牌語言高度一致，一眼就能辨識。' },
+            5: { title: '視覺即品牌', desc: '介面本身就是品牌體驗的一部分，風格獨特到成為設計標竿。' }
+          }
+        },
+        {
+          key: 'amplification', label: '視覺放大能力', shortLabel: '視覺放大',
+          core: '介面中的視覺元素是否讓內容更好理解？動態、圖示、色彩是否在幫助使用者？',
+          levels: {
+            1: { title: '裝飾妨礙閱讀', desc: '過多的視覺裝飾讓介面看起來花俏，反而影響資訊傳達。' },
+            2: { title: '美但不助理解', desc: '介面美觀，但視覺元素對資訊理解沒有實質幫助。' },
+            3: { title: '視覺輔助到位', desc: '圖示、色彩等視覺提示有助於理解，但缺乏記憶點。' },
+            4: { title: '視覺引導體驗', desc: '微互動與視覺回饋讓操作過程更直覺，提升整體使用感受。' },
+            5: { title: '視覺體驗標竿', desc: '介面視覺成為使用者津津樂道的亮點，兼顧美感與功能性。' }
+          }
+        },
+        {
+          key: 'feasibility', label: '可執行與風險控制', shortLabel: '風險控制',
+          core: '介面設計是否在開發技術限制內？是否考慮過不同裝置、效能與開發成本？',
+          levels: {
+            1: { title: '無法實現', desc: '設計效果在現有技術條件下難以還原，或效能成本過高。' },
+            2: { title: '開發成本過高', desc: '技術上可以做，但實現難度和時間成本遠超預期。' },
+            3: { title: '基本可實現', desc: '大部分設計能被開發還原，但部分細節可能需要妥協。' },
+            4: { title: '開發友善', desc: '設計時已考慮技術限制與效能，開發端能順暢實現。' },
+            5: { title: '效能與美感兼具', desc: '設計方案在各裝置、各情境下都表現優異，技術實現零妥協。' }
+          }
+        }
+      ],
+      '平面設計': [
+        {
+          key: 'clarity', label: '需求釐清精準度', shortLabel: '需求釐清',
+          core: '平面設計是否準確傳達了需要溝通的訊息？不只是排版好看，而是「看得懂重點」。',
+          levels: {
+            1: { title: '資訊照放', desc: '把所有文字和圖片擺上去，沒有思考溝通優先順序。' },
+            2: { title: '排版美化', desc: '版面整齊好看，但資訊的重點與次要沒有被有效區分。' },
+            3: { title: '重點初現', desc: '能看出想強調什麼，但訊息層次的處理還不夠精準。' },
+            4: { title: '精準傳達', desc: '一眼就能抓到核心訊息，視覺層級完全服務於溝通目的。' },
+            5: { title: '訊息即設計', desc: '設計本身就是最有效的溝通方式，不需要額外解說就能傳達。' }
+          }
+        },
+        {
+          key: 'architecture', label: '概念結構完整度', shortLabel: '概念結構',
+          core: '平面設計是否有系統性的視覺規範？多件產出物之間是否有一致的設計語言？',
+          levels: {
+            1: { title: '各做各的', desc: '每一件設計產出物風格不同，看不出來自同一個系統。' },
+            2: { title: '風格相近', desc: '整體風格類似，但缺乏明確的設計規範與元件系統。' },
+            3: { title: '有基本規範', desc: '色彩與字型有統一，但版面結構與元素運用不夠一致。' },
+            4: { title: '完整設計系統', desc: '有清楚的設計規範，所有產出物在視覺語言上高度統一。' },
+            5: { title: '系統自行延展', desc: '設計系統強到任何人依照規範都能產出一致且高品質的延伸品。' }
+          }
+        },
+        {
+          key: 'differentiation', label: '專屬差異化程度', shortLabel: '專屬差異',
+          core: '這套平面設計是否有品牌專屬性？把 LOGO 遮起來還認得出是這個品牌嗎？',
+          levels: {
+            1: { title: '素材庫水準', desc: '用現成模板或素材拼出來的，換個 LOGO 完全不影響。' },
+            2: { title: '風格通用', desc: '設計有質感，但風格放到其他品牌也完全適用。' },
+            3: { title: '局部特色', desc: '有一些品牌專屬的視覺元素，但整體識別度不夠高。' },
+            4: { title: '品牌辨識強', desc: '即使不看 LOGO，也能從色彩、構成、質感認出品牌。' },
+            5: { title: '視覺即品牌', desc: '設計風格成為品牌的代名詞，具有引領趨勢的獨創性。' }
+          }
+        },
+        {
+          key: 'amplification', label: '視覺放大能力', shortLabel: '視覺放大',
+          core: '平面設計的視覺表現是否成功放大了概念？構圖、色彩、圖像是否讓訊息更有力？',
+          levels: {
+            1: { title: '視覺干擾訊息', desc: '過度裝飾讓版面失焦，觀者看不到真正該看的東西。' },
+            2: { title: '美但無感', desc: '版面精緻漂亮，但看完之後記不住任何重點。' },
+            3: { title: '視覺配合內容', desc: '圖像與文字的配合恰當，但缺乏讓人駐足的視覺衝擊力。' },
+            4: { title: '畫面即說服力', desc: '視覺表現讓訊息變得更有說服力，構圖精準地引導視線。' },
+            5: { title: '過目不忘', desc: '存在一個強烈的核心視覺，成為觀者腦中揮之不去的畫面。' }
+          }
+        },
+        {
+          key: 'feasibility', label: '可執行與風險控制', shortLabel: '風險控制',
+          core: '平面設計的印刷與輸出是否可控？是否已考慮材質、尺寸、色彩管理等製作細節？',
+          levels: {
+            1: { title: '只考慮螢幕', desc: '設計只在螢幕上好看，未考慮印刷或實體輸出的限制。' },
+            2: { title: '輸出問題多', desc: '色彩模式、解析度或出血等基本製作規格有疏漏。' },
+            3: { title: '規格正確', desc: '基本印刷規格都有考慮，但材質與加工的搭配還可優化。' },
+            4: { title: '印刷精準', desc: '設計時已充分考量輸出條件，成品與設計稿高度一致。' },
+            5: { title: '材質即設計', desc: '將印刷材質與加工方式轉化為設計的一部分，成品超越預期。' }
+          }
+        }
+      ]
+    };
+
     const INITIAL_PROJECTS = [
       {
         id: 'p1',
         name: '金融科技特展',
         description: '為年度金融創新展覽打造的整體展區與視覺體驗。透過古典與現代的語彙交錯，呈現數據的溫度。',
         evaluations: [],
-        subItems: [
-          { id: 's1', name: '主視覺海報', evaluations: [] },
-          { id: 's2', name: '互動體驗機台', evaluations: [] }
-        ],
+        subItems: SUB_ITEM_TYPES.map((name, i) => ({
+          id: 's' + (i + 1),
+          name,
+          type: name,
+          evaluations: []
+        })),
         order: 0
       }
     ];
@@ -257,6 +582,15 @@
             });
           } else {
             const fetchedProjects = snapshot.docs.map(document => ({ id: document.id, ...document.data() }));
+            // 遷移：為缺少預設子項目的舊專案自動補上
+            fetchedProjects.forEach(async (p) => {
+              const patched = ensureDefaultSubItems(p.subItems);
+              if (patched.length !== (p.subItems || []).length) {
+                try {
+                  await updateDoc(doc(projectsRef, p.id), { subItems: patched });
+                } catch (e) { console.error("Migration patch failed:", e); }
+              }
+            });
             setProjects(fetchedProjects);
             setLoadingDb(false);
           }
@@ -302,13 +636,21 @@
         }
       }, [activeItem, currentMemberId]);
 
-      const isDraftComplete = useMemo(() => DIMENSIONS.every(dim => (draftScores[dim.key] || 0) > 0), [draftScores]);
+      // 根據當前子項目類型動態取得對應的評分描述
+      const activeDimensions = useMemo(() => {
+        if (!activeItem || activeItemId === 'main') return DIMENSIONS;
+        const subType = activeItem.type;
+        if (subType && SUB_ITEM_DIMENSIONS[subType]) return SUB_ITEM_DIMENSIONS[subType];
+        return DIMENSIONS;
+      }, [activeItem, activeItemId]);
+
+      const isDraftComplete = useMemo(() => activeDimensions.every(dim => (draftScores[dim.key] || 0) > 0), [draftScores, activeDimensions]);
 
       const hasUnsavedChanges = useMemo(() => {
         const existingEval = (activeItem?.evaluations || []).find(e => e.memberId === currentMemberId);
         const existingScores = existingEval ? existingEval.scores : {};
-        return DIMENSIONS.some(dim => (existingScores[dim.key] || 0) !== (draftScores[dim.key] || 0));
-      }, [activeItem, currentMemberId, draftScores]);
+        return activeDimensions.some(dim => (existingScores[dim.key] || 0) !== (draftScores[dim.key] || 0));
+      }, [activeItem, currentMemberId, draftScores, activeDimensions]);
 
       const aggregatedScores = useMemo(() => {
         if (!activeItem) return null;
@@ -387,7 +729,7 @@
         if (!newProject.name || !newProject.name.trim() || !user) return;
         const newId = 'p' + Date.now().toString();
         const maxOrder = projects.length > 0 ? Math.max(...projects.map(p => p.order || 0)) : 0;
-        const createdProject = { id: newId, name: newProject.name.trim(), description: newProject.description || '', evaluations: [], subItems: [], order: maxOrder + 1 };
+        const createdProject = { id: newId, name: newProject.name.trim(), description: newProject.description || '', evaluations: [], subItems: createDefaultSubItems(), order: maxOrder + 1 };
         setIsAddingProject(false);
         setNewProject({ name: '', description: '' });
         try { await setDoc(doc(getProjectsCollectionRef(), newId), createdProject); } catch (err) { console.error("setDoc failed:", err); }
@@ -405,7 +747,8 @@
       const confirmAddSubItem = async (e) => {
         e.preventDefault();
         if (newSubItemName && newSubItemName.trim() && user && selectedProject) {
-          const newSubItem = { id: 's' + Date.now(), name: newSubItemName.trim(), evaluations: [] };
+          const trimmedName = newSubItemName.trim();
+          const newSubItem = { id: 's' + Date.now(), name: trimmedName, type: SUB_ITEM_TYPES.includes(trimmedName) ? trimmedName : null, evaluations: [] };
           const updatedSubItems = [...(selectedProject.subItems || []), newSubItem];
           setNewSubItemName('');
           setIsAddingSubItem(false);
@@ -847,7 +1190,7 @@
                   )}
                 </div>
 
-                {DIMENSIONS.map((dim, index) => {
+                {activeDimensions.map((dim, index) => {
                   const currentScore = draftScores[dim.key] || 0;
                   const isExpanded = expandedRubrics[dim.key] ? true : false;
                   const levelObj = dim.levels[currentScore] || { title: 'Pending', desc: '' };
@@ -917,7 +1260,7 @@
                     <p className={`text-xs tracking-wide ${isDraftComplete ? 'text-stone-500' : 'text-red-700'}`}>
                       {isDraftComplete
                         ? hasUnsavedChanges ? '評量已完成，請確認並同步至雲端。' : '目前矩陣已同步至最新狀態。'
-                        : `尚有 ${5 - DIMENSIONS.filter(d => draftScores[d.key] > 0).length} 項維度未完成評量`}
+                        : `尚有 ${5 - activeDimensions.filter(d => draftScores[d.key] > 0).length} 項維度未完成評量`}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
